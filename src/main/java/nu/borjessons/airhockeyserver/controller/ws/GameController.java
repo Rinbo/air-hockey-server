@@ -1,6 +1,5 @@
 package nu.borjessons.airhockeyserver.controller.ws;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,8 +27,12 @@ public class GameController {
     return String.format("/topic/lobby/%s/chat", lobbyId);
   }
 
-  private static String createNotificationTopic(String lobbyId) {
-    return String.format("/topic/lobby/%s/notification", lobbyId);
+  private static ChatMessage createJoinMessage(ChatMessage chatMessage) {
+    return new ChatMessage(new Username(Agent.GAME_BOT.toString()), chatMessage.username() + " joined", chatMessage.datetime());
+  }
+
+  private static String createPlayerTopic(String lobbyId) {
+    return String.format("/topic/lobby/%s/players", lobbyId);
   }
 
   private static String getAttribute(SimpMessageHeaderAccessor header, String key) {
@@ -52,6 +55,7 @@ public class GameController {
     this.gameService = gameService;
   }
 
+  // TODO add validation so that only the two players in the gameStore are allowed to send here
   @MessageMapping("/lobby/{lobbyId}/chat")
   public void handleChat(@DestinationVariable String lobbyId, @Payload ChatMessage chatMessage, SimpMessageHeaderAccessor header) {
     logger.info("{} in lobby-{} sent a message", getAttribute(header, "username"), getAttribute(header, "lobbyId"));
@@ -67,9 +71,8 @@ public class GameController {
       setAttribute(header, "username", username.toString());
       setAttribute(header, "lobbyId", lobbyId);
 
-      logger.info("current players in this game {}", Arrays.toString(gameService.getPlayers(LobbyId.ofString(lobbyId)).toArray()));
-      messagingTemplate.convertAndSend(createChatTopic(lobbyId),
-          new ChatMessage(new Username(Agent.GAME_ADMIN.toString()), username + " joined", chatMessage.datetime()));
+      messagingTemplate.convertAndSend(createChatTopic(lobbyId), createJoinMessage(chatMessage));
+      messagingTemplate.convertAndSend(createPlayerTopic(lobbyId), gameService.getPlayers(LobbyId.ofString(lobbyId)));
     }
   }
 

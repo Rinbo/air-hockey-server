@@ -1,9 +1,9 @@
 package nu.borjessons.airhockeyserver.model;
 
 public enum Agent {
-  GAME_ADMIN("Game Admin"),
-  PLAYER_1("Player 1"),
-  PLAYER_2("Player 2");
+  GAME_BOT("GameBot"),
+  PLAYER_1("Player_1"),
+  PLAYER_2("Player_2");
 
   private final String string;
 
