@@ -1,28 +1,33 @@
 package nu.borjessons.airhockeyserver.service;
 
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import nu.borjessons.airhockeyserver.model.Agent;
-import nu.borjessons.airhockeyserver.model.LobbyId;
+import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.service.api.GameService;
 
 @Service
 public class GameServiceImpl implements GameService {
-  private final ConcurrentHashMap<LobbyId, Set<Player>> userStore;
+  private static final Logger logger = LoggerFactory.getLogger(GameServiceImpl.class);
 
-  public GameServiceImpl() {
-    this.userStore = new ConcurrentHashMap<>();
+  private final Map<GameId, Set<Player>> gameStore;
+
+  public GameServiceImpl(Map<GameId, Set<Player>> gameStore) {
+    this.gameStore = gameStore;
   }
 
   @Override
-  public boolean addUserToLobby(LobbyId lobbyId, Username username) {
-    Set<Player> set = userStore.computeIfAbsent(lobbyId, k -> new HashSet<>());
+  public boolean addUserToGame(GameId gameId, Username username) {
+    Set<Player> set = gameStore.computeIfAbsent(gameId, k -> new HashSet<>());
     return switch (set.size()) {
       case 0 -> set.add(new Player(username, Agent.PLAYER_1));
       case 1 -> set.add(new Player(username, Agent.PLAYER_2));
@@ -31,7 +36,40 @@ public class GameServiceImpl implements GameService {
   }
 
   @Override
-  public Set<Player> getPlayers(LobbyId lobbyId) {
-    return userStore.get(lobbyId);
+  public void deleteGame(GameId gameId) {
+    Set<Player> players = gameStore.remove(gameId);
+    logger.info("removed game {}, with players {}", gameId, players);
+  }
+
+  @Override
+  public Optional<Player> getPlayer(GameId gameId, Username username) {
+    if (gameStore.containsKey(gameId)) {
+      return gameStore.get(gameId).stream().filter(player -> player.username().equals(username)).findFirst();
+    }
+    
+    return Optional.empty();
+  }
+
+  @Override
+  public Set<Player> getPlayers(GameId gameId) {
+    return gameStore.get(gameId);
+  }
+
+  @Override
+  public void removeUser(GameId gameId, Username username) {
+    /*gameStore.computeIfPresent(gameId, (gid, players) -> {
+      players.removeIf(player -> player.username().equals(username));
+      return players;
+    });*/
+
+    Set<Player> players = gameStore.get(gameId);
+
+    if (players != null) {
+      boolean wasRemoved = players.removeIf(player -> player.username().equals(username));
+      if (!wasRemoved) logger.warn("player {} was not in game: {}", username, players);
+      return;
+    }
+
+    logger.warn("tried to remove a player from store with non-existent gameId: {}", gameId);
   }
 }

@@ -7,12 +7,12 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 
-import nu.borjessons.airhockeyserver.model.LobbyId;
+import nu.borjessons.airhockeyserver.model.GameId;
 
-public class LobbyIdDeserializer extends JsonDeserializer<LobbyId> {
+public class GameIdDeserializer extends JsonDeserializer<GameId> {
   @Override
-  public LobbyId deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
+  public GameId deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
     JsonNode jsonNode = jsonParser.getCodec().readTree(jsonParser);
-    return LobbyId.ofString(jsonNode.asText());
+    return new GameId(jsonNode.asText());
   }
 }

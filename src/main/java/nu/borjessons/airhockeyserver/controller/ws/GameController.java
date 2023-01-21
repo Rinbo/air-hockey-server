@@ -14,8 +14,10 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import nu.borjessons.airhockeyserver.model.Agent;
-import nu.borjessons.airhockeyserver.model.ChatMessage;
-import nu.borjessons.airhockeyserver.model.LobbyId;
+import nu.borjessons.airhockeyserver.model.GameId;
+import nu.borjessons.airhockeyserver.model.Notification;
+import nu.borjessons.airhockeyserver.model.Player;
+import nu.borjessons.airhockeyserver.model.UserMessage;
 import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.service.api.GameService;
 
@@ -23,16 +25,24 @@ import nu.borjessons.airhockeyserver.service.api.GameService;
 public class GameController {
   private static final Logger logger = LoggerFactory.getLogger(GameController.class);
 
-  private static String createChatTopic(String lobbyId) {
-    return String.format("/topic/lobby/%s/chat", lobbyId);
+  private static String createChatTopic(String gameId) {
+    return String.format("/topic/game/%s/chat", gameId);
   }
 
-  private static ChatMessage createJoinMessage(ChatMessage chatMessage) {
-    return new ChatMessage(new Username(Agent.GAME_BOT.toString()), chatMessage.username() + " joined", chatMessage.datetime());
+  private static UserMessage createConnectMessage(UserMessage userMessage) {
+    return new UserMessage(new Username(Agent.GAME_BOT.toString()), userMessage.username() + " joined", userMessage.datetime());
   }
 
-  private static String createPlayerTopic(String lobbyId) {
-    return String.format("/topic/lobby/%s/players", lobbyId);
+  private static UserMessage createDisconnectMessage(UserMessage userMessage) {
+    return new UserMessage(new Username(Agent.GAME_BOT.toString()), userMessage.username() + " left", userMessage.datetime());
+  }
+
+  private static String createNotificationTopic(String gameId) {
+    return String.format("/topic/game/%s/notification", gameId);
+  }
+
+  private static String createPlayerTopic(String gameId) {
+    return String.format("/topic/game/%s/players", gameId);
   }
 
   private static String getAttribute(SimpMessageHeaderAccessor header, String key) {
@@ -56,30 +66,58 @@ public class GameController {
   }
 
   // TODO add validation so that only the two players in the gameStore are allowed to send here
-  @MessageMapping("/lobby/{lobbyId}/chat")
-  public void handleChat(@DestinationVariable String lobbyId, @Payload ChatMessage chatMessage, SimpMessageHeaderAccessor header) {
-    logger.info("{} in lobby-{} sent a message", getAttribute(header, "username"), getAttribute(header, "lobbyId"));
+  @MessageMapping("/game/{id}/chat")
+  public void handleChat(@DestinationVariable String id, @Payload UserMessage userMessage, SimpMessageHeaderAccessor header) {
+    logger.info("{} in game-{} sent a message", getAttribute(header, "username"), getAttribute(header, "gameId"));
 
-    messagingTemplate.convertAndSend(createChatTopic(lobbyId), chatMessage);
+    messagingTemplate.convertAndSend(createChatTopic(id), userMessage);
   }
 
-  @MessageMapping("/lobby/{lobbyId}/connect")
-  public void handleConnect(@DestinationVariable String lobbyId, @Payload ChatMessage chatMessage, SimpMessageHeaderAccessor header) {
-    Username username = chatMessage.username();
+  @MessageMapping("/game/{id}/connect")
+  public void handleConnect(@DestinationVariable String id, @Payload UserMessage userMessage, SimpMessageHeaderAccessor header) {
+    Username username = userMessage.username();
+    GameId gameId = new GameId(id);
 
-    if (gameService.addUserToLobby(LobbyId.ofString(lobbyId), username)) {
+    if (gameService.addUserToGame(gameId, username)) {
       setAttribute(header, "username", username.toString());
-      setAttribute(header, "lobbyId", lobbyId);
+      setAttribute(header, "gameId", id);
 
-      messagingTemplate.convertAndSend(createChatTopic(lobbyId), createJoinMessage(chatMessage));
-      messagingTemplate.convertAndSend(createPlayerTopic(lobbyId), gameService.getPlayers(LobbyId.ofString(lobbyId)));
+      messagingTemplate.convertAndSend(createChatTopic(id), createConnectMessage(userMessage));
     }
+
+    messagingTemplate.convertAndSend(createPlayerTopic(id), gameService.getPlayers(gameId));
+  }
+
+  @MessageMapping("/game/{id}/disconnect")
+  public void handleDisconnect(@DestinationVariable String id, @Payload UserMessage userMessage) {
+    GameId gameId = new GameId(id);
+
+    logger.info("disconnect event {}", userMessage);
+
+    gameService.getPlayer(gameId, userMessage.username())
+        .ifPresentOrElse(player -> handleUserDisconnect(id, userMessage, gameId, player),
+            () -> logger.debug("rogue player disconnected from game {}", gameId));
   }
 
   @MessageMapping("/send-message")
   @SendTo("/topic/public")
-  public ChatMessage sendMessage(ChatMessage chatMessage) {
-    logger.info("Received message: {}", chatMessage);
-    return chatMessage;
+  public UserMessage sendMessage(UserMessage userMessage) {
+    logger.info("Received message: {}", userMessage);
+    return userMessage;
+  }
+
+  private void handleUserDisconnect(String id, UserMessage userMessage, GameId gameId, Player player) {
+    switch (player.agent()) {
+      case PLAYER_1 -> {
+        messagingTemplate.convertAndSend(createNotificationTopic(id), Notification.CREATOR_DISCONNECT);
+        gameService.deleteGame(gameId);
+      }
+      case PLAYER_2 -> {
+        gameService.removeUser(gameId, userMessage.username());
+        messagingTemplate.convertAndSend(createPlayerTopic(id), gameService.getPlayers(gameId));
+        messagingTemplate.convertAndSend(createChatTopic(id), createDisconnectMessage(userMessage));
+      }
+      case GAME_BOT -> logger.warn("game bot located in userStore");
+    }
   }
 }
