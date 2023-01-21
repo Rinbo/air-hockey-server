@@ -3,7 +3,7 @@ package nu.borjessons.airhockeyserver.model;
 public enum Agent {
   GAME_ADMIN("Game Admin"),
   PLAYER_1("Player 1"),
-  PLAYER_20("Player 2");
+  PLAYER_2("Player 2");
 
   private final String string;
 

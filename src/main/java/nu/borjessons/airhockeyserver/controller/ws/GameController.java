@@ -1,5 +1,6 @@
 package nu.borjessons.airhockeyserver.controller.ws;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 
@@ -23,6 +24,14 @@ import nu.borjessons.airhockeyserver.service.api.GameService;
 public class GameController {
   private static final Logger logger = LoggerFactory.getLogger(GameController.class);
 
+  private static String createChatTopic(String lobbyId) {
+    return String.format("/topic/lobby/%s/chat", lobbyId);
+  }
+
+  private static String createNotificationTopic(String lobbyId) {
+    return String.format("/topic/lobby/%s/notification", lobbyId);
+  }
+
   private static String getAttribute(SimpMessageHeaderAccessor header, String key) {
     return getMap(header).map(map -> (String) map.get(key)).orElse("");
   }
@@ -43,23 +52,25 @@ public class GameController {
     this.gameService = gameService;
   }
 
-  @MessageMapping("/lobby/{lobbyId}")
+  @MessageMapping("/lobby/{lobbyId}/chat")
   public void handleChat(@DestinationVariable String lobbyId, @Payload ChatMessage chatMessage, SimpMessageHeaderAccessor header) {
     logger.info("{} in lobby-{} sent a message", getAttribute(header, "username"), getAttribute(header, "lobbyId"));
 
-    messagingTemplate.convertAndSend("/topic/lobby-" + lobbyId, chatMessage);
+    messagingTemplate.convertAndSend(createChatTopic(lobbyId), chatMessage);
   }
 
   @MessageMapping("/lobby/{lobbyId}/connect")
   public void handleConnect(@DestinationVariable String lobbyId, @Payload ChatMessage chatMessage, SimpMessageHeaderAccessor header) {
     Username username = chatMessage.username();
-    gameService.addUserToLobby(LobbyId.ofString(lobbyId), username);
 
-    setAttribute(header, "username", username.toString());
-    setAttribute(header, "lobbyId", lobbyId);
+    if (gameService.addUserToLobby(LobbyId.ofString(lobbyId), username)) {
+      setAttribute(header, "username", username.toString());
+      setAttribute(header, "lobbyId", lobbyId);
 
-    messagingTemplate.convertAndSend("/topic/lobby-" + lobbyId,
-        new ChatMessage(new Username(Agent.GAME_ADMIN.toString()), username + " joined", chatMessage.datetime()));
+      logger.info("current players in this game {}", Arrays.toString(gameService.getPlayers(LobbyId.ofString(lobbyId)).toArray()));
+      messagingTemplate.convertAndSend(createChatTopic(lobbyId),
+          new ChatMessage(new Username(Agent.GAME_ADMIN.toString()), username + " joined", chatMessage.datetime()));
+    }
   }
 
   @MessageMapping("/send-message")

@@ -7,8 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import nu.borjessons.airhockeyserver.controller.dezerializer.LobbyIdDeserializer;
 import nu.borjessons.airhockeyserver.controller.dezerializer.UsernameDeserializer;
+import nu.borjessons.airhockeyserver.controller.serializer.LobbyIdSerializer;
 import nu.borjessons.airhockeyserver.controller.serializer.UsernameSerializer;
+import nu.borjessons.airhockeyserver.model.LobbyId;
 import nu.borjessons.airhockeyserver.model.Username;
 
 @Configuration
@@ -18,10 +21,13 @@ public class AppConfig {
     ObjectMapper objectMapper = new ObjectMapper();
     SimpleModule simpleModule = new SimpleModule();
 
+    simpleModule.addSerializer(LobbyId.class, new LobbyIdSerializer());
     simpleModule.addSerializer(Username.class, new UsernameSerializer());
-    simpleModule.addDeserializer(Username.class, new UsernameDeserializer());
-    objectMapper.registerModules(new JavaTimeModule(), simpleModule);
 
+    simpleModule.addDeserializer(LobbyId.class, new LobbyIdDeserializer());
+    simpleModule.addDeserializer(Username.class, new UsernameDeserializer());
+
+    objectMapper.registerModules(new JavaTimeModule(), simpleModule);
     return objectMapper;
   }
 }
