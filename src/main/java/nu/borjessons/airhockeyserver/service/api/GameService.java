@@ -17,4 +17,6 @@ public interface GameService {
   Set<Player> getPlayers(GameId gameId);
 
   void removeUser(GameId gameId, Username username);
+
+  void toggleReady(GameId gameId, Username userName);
 }

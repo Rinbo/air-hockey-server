@@ -53,23 +53,25 @@ public class GameServiceImpl implements GameService {
 
   @Override
   public Set<Player> getPlayers(GameId gameId) {
-    if (gameStoreMap.containsKey(gameId)) {
-      return gameStoreMap.get(gameId).getPlayers();
-    }
-
-    logger.warn("tried to get players from non-existant game {}", gameId);
-    return Set.of();
+    return getGameStore(gameId).map(GameStore::getPlayers).orElseThrow();
   }
 
   @Override
   public void removeUser(GameId gameId, Username username) {
-    GameStore gameStore = gameStoreMap.get(gameId);
+    getGameStore(gameId)
+        .ifPresentOrElse(gameStore -> gameStore.getPlayer(username).ifPresent(gameStore::removePlayer),
+            () -> logger.warn("tried to remove a player from store with non-existent gameId: {}", gameId));
 
-    if (gameStore != null) {
-      gameStore.getPlayer(username).ifPresent(gameStore::removePlayer);
-      return;
-    }
+  }
 
-    logger.warn("tried to remove a player from store with non-existent gameId: {}", gameId);
+  @Override
+  public void toggleReady(GameId gameId, Username userName) {
+    getGameStore(gameId)
+        .ifPresent(gameStore -> gameStore.getPlayer(userName)
+            .ifPresent(gameStore::togglePlayerReadiness));
+  }
+
+  private Optional<GameStore> getGameStore(GameId gameId) {
+    return Optional.ofNullable(gameStoreMap.get(gameId));
   }
 }
