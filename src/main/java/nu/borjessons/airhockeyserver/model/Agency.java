@@ -1,13 +1,13 @@
 package nu.borjessons.airhockeyserver.model;
 
-public enum Agent {
+public enum Agency {
   GAME_BOT("GameBot"),
   PLAYER_1("Player_1"),
   PLAYER_2("Player_2");
 
   private final String string;
 
-  Agent(String string) {
+  Agency(String string) {
     this.string = string;
   }
 

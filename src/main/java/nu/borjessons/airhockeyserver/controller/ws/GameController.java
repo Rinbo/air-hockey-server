@@ -13,7 +13,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
-import nu.borjessons.airhockeyserver.model.Agent;
+import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.Player;
@@ -30,11 +30,11 @@ public class GameController {
   }
 
   private static UserMessage createConnectMessage(UserMessage userMessage) {
-    return new UserMessage(new Username(Agent.GAME_BOT.toString()), userMessage.username() + " joined", userMessage.datetime());
+    return new UserMessage(new Username(Agency.GAME_BOT.toString()), userMessage.username() + " joined", userMessage.datetime());
   }
 
   private static UserMessage createDisconnectMessage(UserMessage userMessage) {
-    return new UserMessage(new Username(Agent.GAME_BOT.toString()), userMessage.username() + " left", userMessage.datetime());
+    return new UserMessage(new Username(Agency.GAME_BOT.toString()), userMessage.username() + " left", userMessage.datetime());
   }
 
   private static String createNotificationTopic(String gameId) {
@@ -107,7 +107,7 @@ public class GameController {
   }
 
   private void handleUserDisconnect(String id, UserMessage userMessage, GameId gameId, Player player) {
-    switch (player.agent()) {
+    switch (player.getAgency()) {
       case PLAYER_1 -> {
         messagingTemplate.convertAndSend(createNotificationTopic(id), Notification.CREATOR_DISCONNECT);
         gameService.deleteGame(gameId);

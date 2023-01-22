@@ -2,10 +2,31 @@ package nu.borjessons.airhockeyserver.model;
 
 import java.util.Objects;
 
-public record Player(Username username, Agent agent) {
-  public Player {
+public class Player {
+  private final Agency agency;
+  private boolean ready;
+  private final Username username;
+
+  public Player(Agency agency, Username username) {
     Objects.requireNonNull(username, "username must not be null");
-    Objects.requireNonNull(agent, "agent must not be null");
+    Objects.requireNonNull(agency, "agency must not be null");
+
+    this.agency = agency;
+    this.username = username;
+    this.ready = false;
+  }
+
+  public Agency getAgency() {
+    return agency;
+  }
+
+  public Username getUsername() {
+    return username;
+  }
+
+  @Override
+  public int hashCode() {
+    return username.hashCode();
   }
 
   @Override
@@ -18,8 +39,15 @@ public record Player(Username username, Agent agent) {
     return username.equals(other.username);
   }
 
-  @Override
-  public int hashCode() {
-    return username.hashCode();
+  public boolean isPlayer(Username username) {
+    return this.username.equals(username);
+  }
+
+  public boolean isReady() {
+    return ready;
+  }
+
+  public void toggleReady() {
+    ready = !ready;
   }
 }
