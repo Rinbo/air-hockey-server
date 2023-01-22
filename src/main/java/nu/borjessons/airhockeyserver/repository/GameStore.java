@@ -3,6 +3,7 @@ package nu.borjessons.airhockeyserver.repository;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.Player;
@@ -37,6 +38,14 @@ public class GameStore {
 
   public synchronized void removePlayer(Player player) {
     players.remove(player);
+  }
+
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", GameStore.class.getSimpleName() + "[", "]")
+        .add("gameId=" + gameId)
+        .add("players=" + players)
+        .toString();
   }
 
   public synchronized void togglePlayerReadiness(Player player) {

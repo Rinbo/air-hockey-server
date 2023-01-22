@@ -1,6 +1,7 @@
 package nu.borjessons.airhockeyserver.model;
 
 import java.util.Objects;
+import java.util.StringJoiner;
 
 public class Player {
   private final Agency agency;
@@ -37,6 +38,15 @@ public class Player {
     Player other = (Player) object;
 
     return username.equals(other.username);
+  }
+
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", Player.class.getSimpleName() + "[", "]")
+        .add("agency=" + agency)
+        .add("ready=" + ready)
+        .add("username=" + username)
+        .toString();
   }
 
   public boolean isPlayer(Username username) {

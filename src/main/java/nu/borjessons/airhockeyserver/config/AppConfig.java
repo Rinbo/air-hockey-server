@@ -1,7 +1,6 @@
 package nu.borjessons.airhockeyserver.config;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.context.annotation.Bean;
@@ -16,13 +15,13 @@ import nu.borjessons.airhockeyserver.controller.dezerializer.UsernameDeserialize
 import nu.borjessons.airhockeyserver.controller.serializer.GameIdSerializer;
 import nu.borjessons.airhockeyserver.controller.serializer.UsernameSerializer;
 import nu.borjessons.airhockeyserver.model.GameId;
-import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.Username;
+import nu.borjessons.airhockeyserver.repository.GameStore;
 
 @Configuration
 public class AppConfig {
   @Bean
-  Map<GameId, Set<Player>> createGameStore() {
+  Map<GameId, GameStore> createGameStore() {
     return new ConcurrentHashMap<>();
   }
 
