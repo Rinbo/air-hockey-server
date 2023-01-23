@@ -1,9 +1,9 @@
 package nu.borjessons.airhockeyserver.repository;
 
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.TreeSet;
 
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.Player;
@@ -15,7 +15,7 @@ public class GameStore {
 
   public GameStore(GameId gameId) {
     this.gameId = gameId;
-    this.players = new HashSet<>();
+    this.players = new TreeSet<>();
   }
 
   public synchronized void addPlayer(Player player) {

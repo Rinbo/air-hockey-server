@@ -3,7 +3,7 @@ package nu.borjessons.airhockeyserver.model;
 import java.util.Objects;
 import java.util.StringJoiner;
 
-public class Player {
+public class Player implements Comparable<Player> {
   private final Agency agency;
   private boolean ready;
   private final Username username;
@@ -15,6 +15,11 @@ public class Player {
     this.agency = agency;
     this.username = username;
     this.ready = false;
+  }
+
+  @Override
+  public int compareTo(Player other) {
+    return agency.compareTo(other.agency);
   }
 
   public Agency getAgency() {

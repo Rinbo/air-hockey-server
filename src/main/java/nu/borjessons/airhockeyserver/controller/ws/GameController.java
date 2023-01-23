@@ -91,6 +91,7 @@ public class GameController {
     Username username = userMessage.username();
     GameId gameId = new GameId(id);
 
+    // TODO user still falls out of store if page is reloaded, or does he? If I reload player1 frontend I cannot toggle readiness anymore
     if (gameService.addUserToGame(gameId, username)) {
       setAttribute(header, USERNAME_HEADER, username.toString());
       setAttribute(header, GAME_ID_HEADER, id);
