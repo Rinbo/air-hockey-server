@@ -3,6 +3,7 @@ package nu.borjessons.airhockeyserver.repository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.utils.TestUtils;
 
 class GameStoreTest {
@@ -23,6 +24,15 @@ class GameStoreTest {
 
     gameStore.removePlayer(TestUtils.PLAYER1);
     Assertions.assertEquals(0, gameStore.getPlayers().size());
+  }
+
+  @Test
+  void gameStateTest() {
+    GameStore gameStore = TestUtils.createGameStore();
+    Assertions.assertEquals(GameState.LOBBY, gameStore.getGameState());
+
+    gameStore.setGameState(GameState.GAME_RUNNING);
+    Assertions.assertEquals(GameState.GAME_RUNNING, gameStore.getGameState());
   }
 
   @Test

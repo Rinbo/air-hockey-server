@@ -71,7 +71,8 @@ public class GameServiceImpl implements GameService {
             .ifPresent(gameStore::togglePlayerReadiness));
   }
 
-  private Optional<GameStore> getGameStore(GameId gameId) {
+  @Override
+  public Optional<GameStore> getGameStore(GameId gameId) {
     return Optional.ofNullable(gameStoreMap.get(gameId));
   }
 }
