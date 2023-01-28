@@ -65,10 +65,13 @@ public class GameController {
     return Optional.ofNullable(header.getSessionAttributes());
   }
 
+  private static Username getUserName(SimpMessageHeaderAccessor header) {
+    return new Username(getAttribute(header, USERNAME_HEADER));
+  }
+
   private static void setAttribute(SimpMessageHeaderAccessor header, String key, String value) {
     getMap(header).ifPresent(map -> map.put(key, value));
   }
-
   private final GameService gameService;
   private final SimpMessagingTemplate messagingTemplate;
 
@@ -136,10 +139,6 @@ public class GameController {
     return gameService.getPlayer(gameId, username)
         .map(player -> player.isReady() ? formatMessage("%s is ready", username) : formatMessage("%s cancelled readiness", username))
         .orElseThrow();
-  }
-
-  private Username getUserName(SimpMessageHeaderAccessor header) {
-    return new Username(getAttribute(header, USERNAME_HEADER));
   }
 
   private void handleUserDisconnect(String id, UserMessage userMessage, GameId gameId, Player player) {
