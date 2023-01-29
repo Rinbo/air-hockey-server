@@ -1,14 +1,13 @@
 package nu.borjessons.airhockeyserver.service;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.Username;
@@ -27,19 +26,19 @@ public class GameServiceImpl implements GameService {
 
   @Override
   public boolean addUserToGame(GameId gameId, Username username) {
-    Set<Player> players = gameStoreMap.computeIfAbsent(gameId, GameStore::new).getPlayers();
-
-    return switch (players.size()) {
-      case 0 -> players.add(new Player(Agency.PLAYER_1, username));
-      case 1 -> players.add(new Player(Agency.PLAYER_2, username));
-      default -> false;
-    };
+    GameStore gameStore = gameStoreMap.computeIfAbsent(gameId, GameStore::new);
+    return gameStore.addPlayer(username);
   }
 
   @Override
   public void deleteGame(GameId gameId) {
     GameStore gameStore = gameStoreMap.remove(gameId);
     logger.info("removed gameStore {}", gameStore);
+  }
+
+  @Override
+  public Optional<GameStore> getGameStore(GameId gameId) {
+    return Optional.ofNullable(gameStoreMap.get(gameId));
   }
 
   @Override
@@ -52,7 +51,7 @@ public class GameServiceImpl implements GameService {
   }
 
   @Override
-  public Set<Player> getPlayers(GameId gameId) {
+  public Collection<Player> getPlayers(GameId gameId) {
     return getGameStore(gameId).map(GameStore::getPlayers).orElseThrow();
   }
 
@@ -69,10 +68,5 @@ public class GameServiceImpl implements GameService {
     getGameStore(gameId)
         .ifPresent(gameStore -> gameStore.getPlayer(userName)
             .ifPresent(gameStore::togglePlayerReadiness));
-  }
-
-  @Override
-  public Optional<GameStore> getGameStore(GameId gameId) {
-    return Optional.ofNullable(gameStoreMap.get(gameId));
   }
 }

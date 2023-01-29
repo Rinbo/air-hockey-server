@@ -1,7 +1,7 @@
 package nu.borjessons.airhockeyserver.service.api;
 
+import java.util.Collection;
 import java.util.Optional;
-import java.util.Set;
 
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.Player;
@@ -17,7 +17,7 @@ public interface GameService {
 
   Optional<Player> getPlayer(GameId gameId, Username username);
 
-  Set<Player> getPlayers(GameId gameId);
+  Collection<Player> getPlayers(GameId gameId);
 
   void removeUser(GameId gameId, Username username);
 

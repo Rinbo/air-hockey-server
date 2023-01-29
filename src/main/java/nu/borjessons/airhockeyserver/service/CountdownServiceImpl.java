@@ -1,5 +1,6 @@
 package nu.borjessons.airhockeyserver.service;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Timer;
@@ -34,8 +35,20 @@ public class CountdownServiceImpl implements CountdownService {
   }
 
   @Override
+  public void cancelTimer(GameId gameId) {
+    if (countdownMap.containsKey(gameId)) {
+      sendCancelMessage(gameId);
+      Timer timer = countdownMap.get(gameId);
+      timer.cancel();
+      countdownMap.remove(gameId);
+    }
+  }
+
+  @Override
   public void handleBothPlayersReady(GameId gameId, Username username) {
-    if (gameService.getPlayers(gameId).stream().allMatch(Player::isReady) && !countdownMap.containsKey(gameId)) {
+    Collection<Player> players = gameService.getPlayers(gameId);
+
+    if (players.size() == 2 && players.stream().allMatch(Player::isReady) && !countdownMap.containsKey(gameId)) {
       Timer timer = new Timer(gameId.toString());
       TimerTask timerTask = createCountdownTask(gameId, timer);
       timer.schedule(timerTask, 0, 1000);
@@ -44,7 +57,7 @@ public class CountdownServiceImpl implements CountdownService {
     } else if (countdownMap.containsKey(gameId)) {
       countdownMap.get(gameId).cancel();
       countdownMap.remove(gameId);
-      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()), new UserMessage(TopicUtils.GAME_BOT, "Countdown cancelled"));
+      sendCancelMessage(gameId);
     }
   }
 
@@ -63,5 +76,9 @@ public class CountdownServiceImpl implements CountdownService {
         }
       }
     };
+  }
+
+  private void sendCancelMessage(GameId gameId) {
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()), new UserMessage(TopicUtils.GAME_BOT, "Countdown cancelled"));
   }
 }

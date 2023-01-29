@@ -23,7 +23,7 @@ class GameServiceImplTest {
     Map<GameId, GameStore> gameStoreMap = createGameStoreMap();
     GameService gameService = new GameServiceImpl(gameStoreMap);
 
-    gameService.removeUser(new GameId("unknown"), TestUtils.PLAYER1.getUsername());
+    gameService.removeUser(new GameId("unknown"), TestUtils.USER1);
 
     Assertions.assertEquals(2, gameStoreMap.get(TestUtils.GAME_ID).getPlayers().size());
     Assertions.assertEquals(1, gameStoreMap.size());
@@ -34,7 +34,7 @@ class GameServiceImplTest {
     Map<GameId, GameStore> gameStoreMap = createGameStoreMap();
     GameService gameService = new GameServiceImpl(gameStoreMap);
 
-    gameService.removeUser(TestUtils.GAME_ID, TestUtils.PLAYER1.getUsername());
+    gameService.removeUser(TestUtils.GAME_ID, TestUtils.USER1);
     Assertions.assertEquals(TestUtils.PLAYER2, gameStoreMap.get(TestUtils.GAME_ID).getPlayers().iterator().next());
 
     gameService.removeUser(TestUtils.GAME_ID, TestUtils.PLAYER2.getUsername());

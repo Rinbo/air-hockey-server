@@ -3,7 +3,9 @@ package nu.borjessons.airhockeyserver.model;
 import java.util.Objects;
 import java.util.StringJoiner;
 
-public class Player implements Comparable<Player> {
+import nu.borjessons.airhockeyserver.repository.GameStore;
+
+public class Player {
   private final Agency agency;
   private boolean ready;
   private final Username username;
@@ -15,11 +17,6 @@ public class Player implements Comparable<Player> {
     this.agency = agency;
     this.username = username;
     this.ready = false;
-  }
-
-  @Override
-  public int compareTo(Player other) {
-    return agency.compareTo(other.agency);
   }
 
   public Agency getAgency() {
@@ -35,6 +32,10 @@ public class Player implements Comparable<Player> {
     return username.hashCode();
   }
 
+  /**
+   * Equality only determined by name so that no duplicates of players can exist in the
+   * {@link GameStore} player set.
+   */
   @Override
   public boolean equals(Object object) {
     if (this == object) return true;

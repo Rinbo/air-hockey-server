@@ -28,15 +28,11 @@ public class GameController {
   private static final String USERNAME_HEADER = "username";
   private static final Logger logger = LoggerFactory.getLogger(GameController.class);
 
-  private static UserMessage createConnectMessage(UserMessage userMessage) {
-    return new UserMessage(TopicUtils.GAME_BOT, userMessage.username() + " joined");
+  private static UserMessage createBotMessage(String message) {
+    return new UserMessage(TopicUtils.GAME_BOT, message);
   }
 
-  private static UserMessage createDisconnectMessage(UserMessage userMessage) {
-    return new UserMessage(TopicUtils.GAME_BOT, userMessage.username() + " left");
-  }
-
-  private static String formatMessage(String message, Object... args) {
+  private static String format(String message, Object... args) {
     return String.format(Locale.ROOT, message, args);
   }
 
@@ -85,12 +81,14 @@ public class GameController {
     Username username = userMessage.username();
     GameId gameId = new GameId(id);
 
-    // TODO user still falls out of store if page is reloaded, or does he? If I reload player1 frontend I cannot toggle readiness anymore
-    if (gameService.addUserToGame(gameId, username)) {
-      setAttribute(header, USERNAME_HEADER, username.toString());
-      setAttribute(header, GAME_ID_HEADER, id);
+    logger.info("{} connected", username);
 
-      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), createConnectMessage(userMessage));
+    setAttribute(header, USERNAME_HEADER, username.toString());
+    setAttribute(header, GAME_ID_HEADER, id);
+
+    if (gameService.addUserToGame(gameId, username)) {
+      logger.info("{} added to gameStore", username);
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), createBotMessage(format("%s joined", username)));
     }
 
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
@@ -102,8 +100,9 @@ public class GameController {
 
     logger.info("disconnect event {}", userMessage);
 
+    countdownService.cancelTimer(gameId);
     gameService.getPlayer(gameId, userMessage.username())
-        .ifPresentOrElse(player -> handleUserDisconnect(gameId, userMessage, player),
+        .ifPresentOrElse(player -> handleUserDisconnect(gameId, player),
             () -> logger.debug("rogue player disconnected from game {}", gameId));
   }
 
@@ -115,26 +114,27 @@ public class GameController {
     Username username = getUserName(header);
     gameService.toggleReady(gameId, username);
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
-    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), new UserMessage(TopicUtils.GAME_BOT, createReadinessMessage(gameId, username)));
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), createBotMessage(createReadinessMessage(gameId, username)));
     countdownService.handleBothPlayersReady(gameId, username);
   }
 
   private String createReadinessMessage(GameId gameId, Username username) {
     return gameService.getPlayer(gameId, username)
-        .map(player -> player.isReady() ? formatMessage("%s is ready", username) : formatMessage("%s cancelled readiness", username))
+        .map(player -> player.isReady() ? format("%s is ready", username) : format("%s cancelled readiness", username))
         .orElseThrow();
   }
 
-  private void handleUserDisconnect(GameId gameId, UserMessage userMessage, Player player) {
+  private void handleUserDisconnect(GameId gameId, Player player) {
     switch (player.getAgency()) {
       case PLAYER_1 -> {
-        messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId.toString()), Notification.CREATOR_DISCONNECT);
+        messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.CREATOR_DISCONNECT);
         gameService.deleteGame(gameId);
       }
       case PLAYER_2 -> {
-        gameService.removeUser(gameId, userMessage.username());
-        messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId.toString()), gameService.getPlayers(gameId));
-        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()), createDisconnectMessage(userMessage));
+        Username username = player.getUsername();
+        gameService.removeUser(gameId, username);
+        messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
+        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), createBotMessage(format("%s left", username)));
       }
       default -> logger.error("player agency is not known {}", player.getAgency());
     }

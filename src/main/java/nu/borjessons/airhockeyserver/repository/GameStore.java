@@ -1,10 +1,13 @@
 package nu.borjessons.airhockeyserver.repository;
 
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.TreeSet;
 
+import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.model.Player;
@@ -18,13 +21,17 @@ public class GameStore {
   public GameStore(GameId gameId) {
     this.gameId = gameId;
     this.gameState = GameState.LOBBY;
-    this.players = new TreeSet<>();
+    this.players = new HashSet<>();
   }
 
-  public synchronized void addPlayer(Player player) {
-    if (players.size() < 2) {
-      players.add(player);
-    }
+  public synchronized boolean addPlayer(Username username) {
+    if (players.size() > 1) throw new IllegalStateException("cannot add more players to gameStore");
+
+    return switch (players.size()) {
+      case 0 -> players.add(new Player(Agency.PLAYER_1, username));
+      case 1 -> players.add(new Player(Agency.PLAYER_2, username));
+      default -> false;
+    };
   }
 
   public GameId getGameId() {
@@ -39,8 +46,8 @@ public class GameStore {
     return players.stream().filter(player -> player.isPlayer(username)).findFirst();
   }
 
-  public synchronized Set<Player> getPlayers() {
-    return players;
+  public synchronized Collection<Player> getPlayers() {
+    return players.stream().sorted(Comparator.comparing(Player::getAgency)).toList();
   }
 
   public synchronized void removePlayer(Player player) {
