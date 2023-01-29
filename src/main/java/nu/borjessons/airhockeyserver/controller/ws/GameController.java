@@ -4,10 +4,6 @@ import java.time.ZonedDateTime;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.IntConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,40 +15,20 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import nu.borjessons.airhockeyserver.model.GameId;
-import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.UserMessage;
 import nu.borjessons.airhockeyserver.model.Username;
+import nu.borjessons.airhockeyserver.service.api.CountdownService;
 import nu.borjessons.airhockeyserver.service.api.GameService;
+import nu.borjessons.airhockeyserver.utils.TopicUtils;
 
 // TODO can I remove ZonedDateTime from userMessage all together? Always set it on the frontend
 @Controller
 public class GameController {
-  private static final Username GAME_BOT = new Username("Game Bot");
   private static final String GAME_ID_HEADER = "gameId";
   private static final String USERNAME_HEADER = "username";
   private static final Logger logger = LoggerFactory.getLogger(GameController.class);
-
-  private static String createChatTopic(String gameId) {
-    return String.format("/topic/game/%s/chat", gameId);
-  }
-
-  private static UserMessage createConnectMessage(UserMessage userMessage) {
-    return new UserMessage(GAME_BOT, userMessage.username() + " joined", userMessage.datetime());
-  }
-
-  private static UserMessage createDisconnectMessage(UserMessage userMessage) {
-    return new UserMessage(GAME_BOT, userMessage.username() + " left", userMessage.datetime());
-  }
-
-  private static String createGameStateTopic(String gameId) {
-    return String.format("/topic/game/%s/game-state", gameId);
-  }
-
-  private static String createPlayerTopic(String gameId) {
-    return String.format("/topic/game/%s/players", gameId);
-  }
 
   private static String formatMessage(String message, Object... args) {
     return String.format(Locale.ROOT, message, args);
@@ -78,12 +54,12 @@ public class GameController {
     getMap(header).ifPresent(map -> map.put(key, value));
   }
 
-  private final Map<GameId, Timer> countdownMap;
+  private final CountdownService countdownService;
   private final GameService gameService;
   private final SimpMessagingTemplate messagingTemplate;
 
-  public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService) {
-    this.countdownMap = new ConcurrentHashMap<>();
+  public GameController(CountdownService countdownService, SimpMessagingTemplate messagingTemplate, GameService gameService) {
+    this.countdownService = countdownService;
     this.messagingTemplate = messagingTemplate;
     this.gameService = gameService;
   }
@@ -95,7 +71,7 @@ public class GameController {
     logger.info("{} in game-{} sent a message", getAttribute(header, USERNAME_HEADER), getAttribute(header, GAME_ID_HEADER));
     gameService.getGameStore(new GameId(id)).ifPresent(gameStore -> logger.info("gameStore state: {}", gameStore));
 
-    messagingTemplate.convertAndSend(createChatTopic(id), userMessage);
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), userMessage);
   }
 
   @MessageMapping("/game/{id}/connect")
@@ -108,10 +84,10 @@ public class GameController {
       setAttribute(header, USERNAME_HEADER, username.toString());
       setAttribute(header, GAME_ID_HEADER, id);
 
-      messagingTemplate.convertAndSend(createChatTopic(id), createConnectMessage(userMessage));
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), TopicUtils.createConnectMessage(userMessage));
     }
 
-    messagingTemplate.convertAndSend(createPlayerTopic(id), gameService.getPlayers(gameId));
+    messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
   }
 
   @MessageMapping("/game/{id}/disconnect")
@@ -121,7 +97,7 @@ public class GameController {
     logger.info("disconnect event {}", userMessage);
 
     gameService.getPlayer(gameId, userMessage.username())
-        .ifPresentOrElse(player -> handleUserDisconnect(id, userMessage, gameId, player),
+        .ifPresentOrElse(player -> handleUserDisconnect(gameId, userMessage, player),
             () -> logger.debug("rogue player disconnected from game {}", gameId));
   }
 
@@ -133,26 +109,10 @@ public class GameController {
     GameId gameId = getGameId(header);
     Username username = getUserName(header);
     gameService.toggleReady(gameId, username);
-    messagingTemplate.convertAndSend(createPlayerTopic(id), gameService.getPlayers(gameId));
-    messagingTemplate.convertAndSend(createChatTopic(id), new UserMessage(GAME_BOT, createReadinessMessage(gameId, username), ZonedDateTime.now()));
-    handleBothPlayersReady(gameId);
-  }
-
-  private TimerTask createCountdownTask(GameId gameId, Timer timer, IntConsumer intConsumer, Runnable runnable) {
-    return new TimerTask() {
-      int count = 3;
-
-      @Override
-      public void run() {
-        logger.info("timer called");
-        intConsumer.accept(count--);
-        if (count < 0) {
-          runnable.run();
-          timer.cancel();
-          countdownMap.remove(gameId);
-        }
-      }
-    };
+    messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id),
+        new UserMessage(TopicUtils.GAME_BOT, createReadinessMessage(gameId, username), ZonedDateTime.now()));
+    countdownService.handleBothPlayersReady(gameId, username);
   }
 
   private String createReadinessMessage(GameId gameId, Username username) {
@@ -161,36 +121,16 @@ public class GameController {
         .orElseThrow();
   }
 
-  private void handleBothPlayersReady(GameId gameId) {
-    if (gameService.getPlayers(gameId).stream().allMatch(Player::isReady) && !countdownMap.containsKey(gameId)) {
-      Timer timer = new Timer(gameId.toString());
-      TimerTask timerTask = createCountdownTask(gameId, timer, count -> messagingTemplate.convertAndSend(createChatTopic(gameId.toString()),
-              new UserMessage(GAME_BOT, "Game starts in " + count, ZonedDateTime.now())),
-          () -> {
-            gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.setGameState(GameState.GAME_RUNNING));
-            messagingTemplate.convertAndSend(createGameStateTopic(gameId.toString()), GameState.GAME_RUNNING);
-          });
-
-      timer.schedule(timerTask, 0, 1000);
-
-      countdownMap.put(gameId, timer);
-    } else if (countdownMap.containsKey(gameId)) {
-      countdownMap.get(gameId).cancel();
-      countdownMap.remove(gameId);
-      messagingTemplate.convertAndSend(createChatTopic(gameId.toString()), new UserMessage(GAME_BOT, "Countdown cancelled", ZonedDateTime.now()));
-    }
-  }
-
-  private void handleUserDisconnect(String id, UserMessage userMessage, GameId gameId, Player player) {
+  private void handleUserDisconnect(GameId gameId, UserMessage userMessage, Player player) {
     switch (player.getAgency()) {
       case PLAYER_1 -> {
-        messagingTemplate.convertAndSend(createGameStateTopic(id), Notification.CREATOR_DISCONNECT);
+        messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId.toString()), Notification.CREATOR_DISCONNECT);
         gameService.deleteGame(gameId);
       }
       case PLAYER_2 -> {
         gameService.removeUser(gameId, userMessage.username());
-        messagingTemplate.convertAndSend(createPlayerTopic(id), gameService.getPlayers(gameId));
-        messagingTemplate.convertAndSend(createChatTopic(id), createDisconnectMessage(userMessage));
+        messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId.toString()), gameService.getPlayers(gameId));
+        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()), TopicUtils.createDisconnectMessage(userMessage));
       }
       default -> logger.error("player agency is not known {}", player.getAgency());
     }
