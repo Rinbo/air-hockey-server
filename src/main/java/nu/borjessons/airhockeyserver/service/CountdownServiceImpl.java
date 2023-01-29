@@ -1,6 +1,5 @@
 package nu.borjessons.airhockeyserver.service;
 
-import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Timer;
@@ -45,8 +44,7 @@ public class CountdownServiceImpl implements CountdownService {
     } else if (countdownMap.containsKey(gameId)) {
       countdownMap.get(gameId).cancel();
       countdownMap.remove(gameId);
-      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()),
-          new UserMessage(TopicUtils.GAME_BOT, "Countdown cancelled", ZonedDateTime.now()));
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()), new UserMessage(TopicUtils.GAME_BOT, "Countdown cancelled"));
     }
   }
 
@@ -56,11 +54,10 @@ public class CountdownServiceImpl implements CountdownService {
 
       @Override
       public void run() {
-        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()),
-            new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--, ZonedDateTime.now()));
+        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--));
         if (count < 0) {
           gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.setGameState(GameState.GAME_RUNNING));
-          messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId.toString()), GameState.GAME_RUNNING);
+          messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), GameState.GAME_RUNNING);
           timer.cancel();
           countdownMap.remove(gameId);
         }

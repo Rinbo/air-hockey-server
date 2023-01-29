@@ -1,6 +1,5 @@
 package nu.borjessons.airhockeyserver.controller.ws;
 
-import java.time.ZonedDateTime;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -23,12 +22,19 @@ import nu.borjessons.airhockeyserver.service.api.CountdownService;
 import nu.borjessons.airhockeyserver.service.api.GameService;
 import nu.borjessons.airhockeyserver.utils.TopicUtils;
 
-// TODO can I remove ZonedDateTime from userMessage all together? Always set it on the frontend
 @Controller
 public class GameController {
   private static final String GAME_ID_HEADER = "gameId";
   private static final String USERNAME_HEADER = "username";
   private static final Logger logger = LoggerFactory.getLogger(GameController.class);
+
+  private static UserMessage createConnectMessage(UserMessage userMessage) {
+    return new UserMessage(TopicUtils.GAME_BOT, userMessage.username() + " joined");
+  }
+
+  private static UserMessage createDisconnectMessage(UserMessage userMessage) {
+    return new UserMessage(TopicUtils.GAME_BOT, userMessage.username() + " left");
+  }
 
   private static String formatMessage(String message, Object... args) {
     return String.format(Locale.ROOT, message, args);
@@ -84,10 +90,10 @@ public class GameController {
       setAttribute(header, USERNAME_HEADER, username.toString());
       setAttribute(header, GAME_ID_HEADER, id);
 
-      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), TopicUtils.createConnectMessage(userMessage));
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), createConnectMessage(userMessage));
     }
 
-    messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
+    messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
   }
 
   @MessageMapping("/game/{id}/disconnect")
@@ -101,7 +107,6 @@ public class GameController {
             () -> logger.debug("rogue player disconnected from game {}", gameId));
   }
 
-  // ZonedDateTime cannot be used here. Consider sending client Timezone on every request instead. Then we always construct datestamp on server
   @MessageMapping("/game/{id}/toggle-ready")
   public void toggleReady(@DestinationVariable String id, SimpMessageHeaderAccessor header) {
     logger.info("{} in game-{} sent a message", getAttribute(header, USERNAME_HEADER), getAttribute(header, GAME_ID_HEADER));
@@ -110,8 +115,7 @@ public class GameController {
     Username username = getUserName(header);
     gameService.toggleReady(gameId, username);
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
-    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id),
-        new UserMessage(TopicUtils.GAME_BOT, createReadinessMessage(gameId, username), ZonedDateTime.now()));
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), new UserMessage(TopicUtils.GAME_BOT, createReadinessMessage(gameId, username)));
     countdownService.handleBothPlayersReady(gameId, username);
   }
 
@@ -130,7 +134,7 @@ public class GameController {
       case PLAYER_2 -> {
         gameService.removeUser(gameId, userMessage.username());
         messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId.toString()), gameService.getPlayers(gameId));
-        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()), TopicUtils.createDisconnectMessage(userMessage));
+        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()), createDisconnectMessage(userMessage));
       }
       default -> logger.error("player agency is not known {}", player.getAgency());
     }
