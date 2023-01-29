@@ -43,7 +43,13 @@ class GameStoreTest {
   @Test
   void maxPlayerTest() {
     GameStore gameStore = TestUtils.createGameStore();
-    Assertions.assertThrows(IllegalStateException.class, () -> gameStore.addPlayer(TestUtils.OTHER_USER));
+
+    gameStore.addPlayer(TestUtils.OTHER_USER);
+
+    Assertions.assertEquals(2, gameStore.getPlayers().size());
+
+    gameStore.removePlayer(TestUtils.OTHER_PLAYER);
+    Assertions.assertEquals(2, gameStore.getPlayers().size());
   }
 
   @Test

@@ -25,7 +25,7 @@ public class GameStore {
   }
 
   public synchronized boolean addPlayer(Username username) {
-    if (players.size() > 1) throw new IllegalStateException("cannot add more players to gameStore");
+    if (players.size() > 1) return false;
 
     return switch (players.size()) {
       case 0 -> players.add(new Player(Agency.PLAYER_1, username));

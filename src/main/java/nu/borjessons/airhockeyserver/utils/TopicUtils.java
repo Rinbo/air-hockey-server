@@ -30,6 +30,10 @@ public final class TopicUtils {
     return createPlayerTopic(gameId.toString());
   }
 
+  public static String createUserTopic(Username username) {
+    return String.format("/topic/game/%s/game-state", username);
+  }
+
   private TopicUtils() {
     throw new IllegalStateException();
   }
