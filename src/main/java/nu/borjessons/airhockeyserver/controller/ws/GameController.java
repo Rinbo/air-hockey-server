@@ -80,14 +80,13 @@ public class GameController {
 
   @MessageMapping("/game/{id}/disconnect")
   public void handleDisconnect(@DestinationVariable String id, SimpMessageHeaderAccessor header) {
-    AuthRecord authRecord = gameValidator.validateUser(header, id);
-    logger.info("disconnect event {}", authRecord);
+    GameId gameId = HeaderUtils.getGameId(header);
+    Username username = HeaderUtils.getUsername(header);
 
-    GameId gameId = authRecord.gameId();
-    countdownService.cancelTimer(gameId);
-    gameService.getPlayer(gameId, authRecord.username())
-        .ifPresentOrElse(player -> handleUserDisconnect(gameId, player),
-            () -> logger.debug("rogue player disconnected from game {}", gameId));
+    logger.info("disconnect event {}", username);
+
+    countdownService.cancelTimer(new GameId(id));
+    gameService.getPlayer(gameId, username).ifPresent(player -> handleUserDisconnect(gameId, player));
   }
 
   @MessageMapping("/game/{id}/toggle-ready")
