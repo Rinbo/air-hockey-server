@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.0.1</version>
+    <version>3.0.2</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
   <groupId>nu.borjessons</groupId>
@@ -14,7 +14,7 @@
   <name>air-hockey-server</name>
   <description>Backend for borjessons air hockey</description>
   <properties>
-    <java.version>17</java.version>
+    <java.version>19</java.version>
   </properties>
   <dependencies>
     <dependency>
