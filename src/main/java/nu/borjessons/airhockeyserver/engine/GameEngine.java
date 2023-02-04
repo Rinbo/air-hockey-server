@@ -5,25 +5,27 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import nu.borjessons.airhockeyserver.model.GameId;
+
 /**
  * Start simple. Only render the two player's handles at first
  * TODO: probably need previous tick's state as well so that I can calculate the speed in the next tick
  */
 public class GameEngine {
-  private final AtomicReference<GameState> gameState;
+  private final AtomicReference<GameState> atomicReference;
   private final Thread gameThread;
 
-  private GameEngine(AtomicReference<GameState> gameState, Thread thread) {
-
-    this.gameState = gameState;
+  private GameEngine(AtomicReference<GameState> atomicReference, Thread thread) {
+    this.atomicReference = atomicReference;
     this.gameThread = thread;
   }
 
-  public static GameEngine init(SimpMessagingTemplate messagingTemplate) {
+  public static GameEngine init(GameId gameId, SimpMessagingTemplate messagingTemplate) {
+    Objects.requireNonNull(gameId, "gameId must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
 
-    AtomicReference<GameState> gameState = new AtomicReference<>(GameConstants.createInitialGameState());
-    return new GameEngine(gameState, new Thread(new GameRunnable(gameState, messagingTemplate)));
+    AtomicReference<GameState> atomicReference = new AtomicReference<>(GameConstants.createInitialGameState());
+    return new GameEngine(atomicReference, new Thread(new GameRunnable(atomicReference, messagingTemplate, String.format("/topic/game/%s", gameId))));
   }
 
   void startGame() {
