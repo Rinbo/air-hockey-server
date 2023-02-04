@@ -41,6 +41,17 @@ import nu.borjessons.airhockeyserver.utils.TopicUtils;
 @Controller
 public class GameController {
   private static final Logger logger = LoggerFactory.getLogger(GameController.class);
+  private final CountdownService countdownService;
+  private final GameService gameService;
+  private final GameValidator gameValidator;
+  private final SimpMessagingTemplate messagingTemplate;
+  
+  public GameController(CountdownService countdownService, GameService gameService, GameValidator gameValidator, SimpMessagingTemplate messagingTemplate) {
+    this.countdownService = countdownService;
+    this.gameService = gameService;
+    this.gameValidator = gameValidator;
+    this.messagingTemplate = messagingTemplate;
+  }
 
   private static UserMessage createBotMessage(String message) {
     return new UserMessage(TopicUtils.GAME_BOT, message);
@@ -48,18 +59,6 @@ public class GameController {
 
   private static String format(String message, Object... args) {
     return String.format(Locale.ROOT, message, args);
-  }
-
-  private final CountdownService countdownService;
-  private final GameService gameService;
-  private final GameValidator gameValidator;
-  private final SimpMessagingTemplate messagingTemplate;
-
-  public GameController(CountdownService countdownService, GameService gameService, GameValidator gameValidator, SimpMessagingTemplate messagingTemplate) {
-    this.countdownService = countdownService;
-    this.gameService = gameService;
-    this.gameValidator = gameValidator;
-    this.messagingTemplate = messagingTemplate;
   }
 
   @MessageMapping("/game/{id}/chat")
