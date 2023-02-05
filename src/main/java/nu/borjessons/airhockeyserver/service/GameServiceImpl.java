@@ -33,6 +33,7 @@ public class GameServiceImpl implements GameService {
   @Override
   public void deleteGame(GameId gameId) {
     GameStore gameStore = gameStoreMap.remove(gameId);
+    gameStore.terminate();
     logger.info("removed gameStore {}", gameStore);
   }
 

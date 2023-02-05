@@ -5,7 +5,7 @@ package nu.borjessons.airhockeyserver.engine;
  */
 final class GameConstants {
   static final double BOARD_ASPECT_RATIO = 1.6; // height / width
-  static final int FRAME_RATE = 60;
+  static final int FRAME_RATE = 30;
   static final double GOAL_WIDTH = 0.2;
   static final double HANDLE_RADIUS = 0.1;
   static final double PUCK_RADIUS = 0.08;
@@ -19,8 +19,8 @@ final class GameConstants {
     throw new IllegalStateException();
   }
 
-  static GameState createInitialGameState() {
-    return new GameState(
+  static BoardState createInitialGameState() {
+    return new BoardState(
         new GameObject(GameConstants.PUCK_START_P1, GameConstants.ZERO_SPEED),
         new GameObject(HANDLE_START_P1, GameConstants.ZERO_SPEED),
         new GameObject(HANDLE_START_P2, GameConstants.ZERO_SPEED));

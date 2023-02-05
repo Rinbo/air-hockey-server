@@ -7,6 +7,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+
+import nu.borjessons.airhockeyserver.engine.GameEngine;
 import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.GameState;
@@ -14,18 +17,21 @@ import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.Username;
 
 public class GameStore {
+  private final GameEngine gameEngine;
   private final GameId gameId;
-  private GameState gameState;
+  private GameState gameState; // Change to using atomic reference
   private final Set<Player> players;
 
   public GameStore(GameId gameId) {
     this.gameId = gameId;
     this.gameState = GameState.LOBBY;
     this.players = new HashSet<>();
+    this.gameEngine = GameEngine.create();
   }
 
   public synchronized boolean addPlayer(Username username) {
-    if (players.size() > 1) return false;
+    if (players.size() > 1)
+      return false;
 
     return switch (players.size()) {
       case 0 -> players.add(new Player(Agency.PLAYER_1, username));
@@ -56,6 +62,15 @@ public class GameStore {
 
   public synchronized void setGameState(GameState gameState) {
     this.gameState = gameState;
+  }
+
+  public void startGame(SimpMessagingTemplate messagingTemplate) {
+    setGameState(GameState.GAME_RUNNING);
+    gameEngine.startGame(gameId, messagingTemplate);
+  }
+
+  public void terminate() {
+    gameEngine.terminate();
   }
 
   @Override

@@ -41,11 +41,12 @@ import nu.borjessons.airhockeyserver.utils.TopicUtils;
 @Controller
 public class GameController {
   private static final Logger logger = LoggerFactory.getLogger(GameController.class);
+
   private final CountdownService countdownService;
   private final GameService gameService;
   private final GameValidator gameValidator;
   private final SimpMessagingTemplate messagingTemplate;
-  
+
   public GameController(CountdownService countdownService, GameService gameService, GameValidator gameValidator, SimpMessagingTemplate messagingTemplate) {
     this.countdownService = countdownService;
     this.gameService = gameService;

@@ -69,7 +69,7 @@ public class CountdownServiceImpl implements CountdownService {
       public void run() {
         messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--));
         if (count < 0) {
-          gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.setGameState(GameState.GAME_RUNNING));
+          gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.startGame(messagingTemplate));
           messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), GameState.GAME_RUNNING);
           timer.cancel();
           countdownMap.remove(gameId);
