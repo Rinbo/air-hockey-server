@@ -3,13 +3,18 @@ package nu.borjessons.airhockeyserver.repository;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.concurrent.atomic.AtomicReference;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import nu.borjessons.airhockeyserver.engine.GameEngine;
+import nu.borjessons.airhockeyserver.engine.Position;
 import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.GameState;
@@ -17,16 +22,26 @@ import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.Username;
 
 public class GameStore {
+  private static final Logger logger = LoggerFactory.getLogger(GameStore.class);
+
   private final GameEngine gameEngine;
   private final GameId gameId;
-  private GameState gameState; // Change to using atomic reference
+  private final AtomicReference<GameState> gameStateReference;
   private final Set<Player> players;
 
   public GameStore(GameId gameId) {
     this.gameId = gameId;
-    this.gameState = GameState.LOBBY;
+    this.gameStateReference = new AtomicReference<>(GameState.LOBBY);
     this.players = new HashSet<>();
     this.gameEngine = GameEngine.create();
+  }
+
+  private static GameState validateTransition(GameState newGameState, GameState currentGameState) {
+    if (currentGameState.isValidNextState(newGameState)) {
+      logger.warn("illegal transition: {} -> {}", currentGameState, newGameState);
+      throw new IllegalStateException("illegal transition");
+    }
+    return newGameState;
   }
 
   public synchronized boolean addPlayer(Username username) {
@@ -44,8 +59,8 @@ public class GameStore {
     return gameId;
   }
 
-  public synchronized GameState getGameState() {
-    return gameState;
+  public GameState getGameState() {
+    return gameStateReference.get();
   }
 
   public synchronized Optional<Player> getPlayer(Username username) {
@@ -60,12 +75,8 @@ public class GameStore {
     players.remove(player);
   }
 
-  public synchronized void setGameState(GameState gameState) {
-    this.gameState = gameState;
-  }
-
   public void startGame(SimpMessagingTemplate messagingTemplate) {
-    setGameState(GameState.GAME_RUNNING);
+    transition(GameState.GAME_RUNNING);
     gameEngine.startGame(gameId, messagingTemplate);
   }
 
@@ -78,11 +89,28 @@ public class GameStore {
     return new StringJoiner(", ", GameStore.class.getSimpleName() + "[", "]")
         .add("gameId=" + gameId)
         .add("players=" + players)
-        .add("gameState=" + gameState)
+        .add("gameState=" + gameStateReference)
         .toString();
   }
 
   public synchronized void togglePlayerReadiness(Player player) {
     players.stream().filter(player::equals).findFirst().ifPresent(Player::toggleReady);
+  }
+
+  public void transition(GameState newGameState) {
+    gameStateReference.updateAndGet(currentGameState -> validateTransition(newGameState, currentGameState));
+  }
+
+  public void updateHandle(Position position, Agency agency) {
+    Objects.requireNonNull(position, "position must not be null");
+    Objects.requireNonNull(agency, "agency must not be null");
+
+    if (gameStateReference.get() != GameState.GAME_RUNNING)
+      return;
+
+    switch (agency) {
+      case PLAYER_1 -> gameEngine.updatePlayerOneHandle(position);
+      case PLAYER_2 -> gameEngine.updatePlayerTwoHandle(position);
+    }
   }
 }

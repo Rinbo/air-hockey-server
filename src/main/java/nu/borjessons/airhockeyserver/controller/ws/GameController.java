@@ -12,9 +12,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import nu.borjessons.airhockeyserver.controller.security.GameValidator;
+import nu.borjessons.airhockeyserver.engine.Position;
 import nu.borjessons.airhockeyserver.model.AuthRecord;
 import nu.borjessons.airhockeyserver.model.GameId;
-import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.UserMessage;
@@ -88,7 +88,7 @@ public class GameController {
         .getPlayer(gameId, username)
         .ifPresentOrElse(
             player -> messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId)),
-            () -> messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username), GameState.FORBIDDEN)
+            () -> messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username), "FORBIDDEN")
         );
   }
 
@@ -115,6 +115,17 @@ public class GameController {
     countdownService.handleBothPlayersReady(gameId, username);
   }
 
+  @MessageMapping("/game/{id}/update-handle")
+  public void updateHandle(@DestinationVariable String id, @Payload Position position, SimpMessageHeaderAccessor header) {
+    AuthRecord authRecord = gameValidator.validateUser(header, id);
+    GameId gameId = authRecord.gameId();
+    Username username = authRecord.username();
+
+    gameService.getGameStore(gameId).ifPresent(gameStore ->
+        gameStore.getPlayer(username).ifPresent(player -> gameStore.updateHandle(position, player.getAgency()))
+    );
+  }
+
   private String createReadinessMessage(GameId gameId, Username username) {
     return gameService.getPlayer(gameId, username)
         .map(player -> player.isReady() ? format("%s is ready", username) : format("%s cancelled readiness", username))
@@ -130,6 +141,7 @@ public class GameController {
       case PLAYER_2 -> {
         Username username = player.getUsername();
         gameService.removeUser(gameId, username);
+        // TODO Transition to lobby state
         messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
         messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), createBotMessage(format("%s left", username)));
       }

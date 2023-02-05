@@ -10,7 +10,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import nu.borjessons.airhockeyserver.model.GameId;
 
-public class GameRunnable implements Runnable {
+class GameRunnable implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
 
   private final AtomicReference<BoardState> atomicReference;
@@ -29,10 +29,6 @@ public class GameRunnable implements Runnable {
 
   private static BroadcastState createBroadcastState(Position opponentPosition, Position puckPosition) {
     return new BroadcastState(opponentPosition, puckPosition);
-  }
-
-  private static Position mirror(Position position) {
-    return new Position(1 - position.x(), 1 - position.y());
   }
 
   @Override
@@ -58,7 +54,9 @@ public class GameRunnable implements Runnable {
   private void broadcast(String playerOneTopic, String playerTwoTopic) {
     BoardState boardState = atomicReference.get();
     Position puckPosition = boardState.puck().position();
-    messagingTemplate.convertAndSend(playerOneTopic, createBroadcastState(boardState.playerTwo().position(), puckPosition));
-    messagingTemplate.convertAndSend(playerTwoTopic, createBroadcastState(mirror(boardState.playerOne().position()), mirror(puckPosition)));
+    messagingTemplate.convertAndSend(playerOneTopic,
+        createBroadcastState(boardState.playerTwo().position(), puckPosition));
+    messagingTemplate.convertAndSend(playerTwoTopic,
+        createBroadcastState(GameEngine.mirror(boardState.playerOne().position()), GameEngine.mirror(puckPosition)));
   }
 }

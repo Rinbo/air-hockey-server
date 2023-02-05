@@ -31,7 +31,7 @@ class GameStoreTest {
     GameStore gameStore = TestUtils.createGameStore();
     Assertions.assertEquals(GameState.LOBBY, gameStore.getGameState());
 
-    gameStore.setGameState(GameState.GAME_RUNNING);
+    gameStore.transition(GameState.GAME_RUNNING);
     Assertions.assertEquals(GameState.GAME_RUNNING, gameStore.getGameState());
   }
 
