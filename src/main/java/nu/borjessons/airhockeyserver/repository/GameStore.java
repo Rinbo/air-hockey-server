@@ -37,7 +37,7 @@ public class GameStore {
   }
 
   private static GameState validateTransition(GameState newGameState, GameState currentGameState) {
-    if (currentGameState.isValidNextState(newGameState)) {
+    if (!currentGameState.isValidNextState(newGameState)) {
       logger.warn("illegal transition: {} -> {}", currentGameState, newGameState);
       throw new IllegalStateException("illegal transition");
     }
@@ -105,8 +105,9 @@ public class GameStore {
     Objects.requireNonNull(position, "position must not be null");
     Objects.requireNonNull(agency, "agency must not be null");
 
-    if (gameStateReference.get() != GameState.GAME_RUNNING)
+    if (gameStateReference.get() != GameState.GAME_RUNNING) {
       return;
+    }
 
     switch (agency) {
       case PLAYER_1 -> gameEngine.updatePlayerOneHandle(position);
