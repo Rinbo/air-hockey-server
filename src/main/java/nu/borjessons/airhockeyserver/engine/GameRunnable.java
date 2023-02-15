@@ -3,8 +3,8 @@ package nu.borjessons.airhockeyserver.engine;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,9 +63,10 @@ class GameRunnable implements Runnable {
 
     while (!Thread.currentThread().isInterrupted()) {
       try {
-        updatePuckPositionAndSpeed();
         Collision collision = detectCollision();
+        //logger.info("{}", collision);
         handleCollision(collision);
+        updatePuckPositionAndSpeed();
         broadcast(playerOneTopic, playerTwoTopic);
         TimeUnit.MILLISECONDS.sleep(1000 / GameConstants.FRAME_RATE);
       } catch (InterruptedException e) {
@@ -90,16 +91,16 @@ class GameRunnable implements Runnable {
     BoardState boardState = atomicReference.get();
     Position puckPosition = boardState.puck().position();
 
-    if (puckPosition.x() - GameConstants.PUCK_W_RADIUS <= 0)
+    if ((puckPosition.x() - GameConstants.PUCK_W_RADIUS) <= 0)
       return Collision.LEFT_WALL;
 
-    if (puckPosition.x() + GameConstants.PUCK_W_RADIUS >= 0)
+    if ((puckPosition.x() + GameConstants.PUCK_W_RADIUS) >= 1)
       return Collision.RIGHT_WALL;
 
-    if (puckPosition.y() + GameConstants.PUCK_H_RADIUS >= 1)
+    if ((puckPosition.y() + GameConstants.PUCK_H_RADIUS) >= 1)
       return Collision.BOTTOM_WALL;
 
-    if (puckPosition.y() - GameConstants.PUCK_H_RADIUS <= 0)
+    if ((puckPosition.y() - GameConstants.PUCK_H_RADIUS) <= 0)
       return Collision.TOP_WALL;
 
     if (calculatePuckHandleDistance(puckPosition, boardState.playerOne().position()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
@@ -117,7 +118,8 @@ class GameRunnable implements Runnable {
       case TOP_WALL, BOTTOM_WALL -> reversePuckYDirection();
       case P1_HANDLE -> onP1HandleCollision();
       case P2_HANDLE -> onP2HandleCollision();
-      case NO_COLLISION, default -> logger.warn("unknown collision type: {}", collision);
+      case NO_COLLISION -> logger.debug("no collision");
+      default -> logger.warn("unknown collision type: {}", collision);
     }
   }
 
@@ -134,7 +136,7 @@ class GameRunnable implements Runnable {
       GameObject player = playerSelector.apply(boardState);
       GameObject puck = boardState.puck();
 
-      GameObject newPuckState = isSpeedZero(player.speed()) ? impartHandleSpeedOnPuck(puck, player) : bounceOffHandle(puck);
+      GameObject newPuckState = isSpeedZero(player.speed()) ? bounceOffHandle(puck) : impartHandleSpeedOnPuck(puck, player);
 
       return new BoardState(
           newPuckState,
@@ -144,36 +146,33 @@ class GameRunnable implements Runnable {
   }
 
   private void reversePuckXDirection() {
-    updatePuckSpeed((speed, speed2) -> new Speed(-1 * speed.x(), speed.y()));
+    updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
   }
 
   private void reversePuckYDirection() {
-    updatePuckSpeed((speed, speed2) -> new Speed(speed.x(), -1 * speed.y()));
+    updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
   }
 
   private void updatePuckPositionAndSpeed() {
     atomicReference.getAndUpdate(boardState -> {
+      //logger.info("boardState: {}", boardState);
       GameObject puck = boardState.puck();
       Position position = puck.position();
-      Speed speed = puck.speed();
+      Speed speed = puck.speed(); // TODO add board friction
 
       return new BoardState(
-          new GameObject(
-              new Position(position.x() + speed.x(), position.y() + speed.y()),
-              new Speed(-1 * puck.speed().x(), puck.speed().y())),
+          new GameObject(new Position(position.x() + speed.x(), position.y() + speed.y()), speed),
           boardState.playerOne(),
           boardState.playerTwo());
     });
   }
 
-  private void updatePuckSpeed(BinaryOperator<Speed> speedUpdater) {
+  private void updatePuckSpeed(UnaryOperator<Speed> speedUpdater) {
     atomicReference.getAndUpdate(boardState -> {
       GameObject puck = boardState.puck();
-      Speed speed = puck.speed();
-      Speed updatedSpeed = speedUpdater.apply(speed, speed);
 
       return new BoardState(
-          new GameObject(puck.position(), updatedSpeed),
+          new GameObject(puck.position(), speedUpdater.apply(puck.speed())),
           boardState.playerOne(),
           boardState.playerTwo());
     });

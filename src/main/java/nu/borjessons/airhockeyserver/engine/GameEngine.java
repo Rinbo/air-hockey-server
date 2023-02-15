@@ -7,7 +7,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import nu.borjessons.airhockeyserver.model.GameId;
 
 /**
- * TODO: probably need previous tick's state as well so that I can calculate the speed in the next tick
+ * It seems handle updates cannot be made with such speed because it never gives the puck a chance to update. Set handle updating to
+ * occur with the same frequency as the frame rate.
+ * Also, solve puck height aspect ratio for collisions.
  */
 public class GameEngine {
   private final AtomicReference<BoardState> boardStateReference;
@@ -27,6 +29,12 @@ public class GameEngine {
     return new Position(1 - position.x(), 1 - position.y());
   }
 
+  private static GameObject createNewHandlePositionAndSpeed(Position currentPosition, Position newPosition) {
+    Speed speed = new Speed(newPosition.x() - currentPosition.x(), newPosition.y() - currentPosition.y());
+    //System.out.println("speed: " + speed);
+    return new GameObject(newPosition, speed);
+  }
+
   public void startGame(GameId gameId, SimpMessagingTemplate messagingTemplate) {
     Thread thread = new Thread(new GameRunnable(boardStateReference, gameId, messagingTemplate));
     thread.start();
@@ -43,7 +51,7 @@ public class GameEngine {
   public void updatePlayerOneHandle(Position position) {
     boardStateReference.updateAndGet(currentBoardState ->
         new BoardState(currentBoardState.puck(),
-            createNewObjectState(currentBoardState.playerOne().position(), position),
+            createNewHandlePositionAndSpeed(currentBoardState.playerOne().position(), position),
             currentBoardState.playerTwo())
     );
   }
@@ -53,11 +61,7 @@ public class GameEngine {
         new BoardState(
             currentBoardState.puck(),
             currentBoardState.playerOne(),
-            createNewObjectState(currentBoardState.playerTwo().position(), mirror(position)))
+            createNewHandlePositionAndSpeed(currentBoardState.playerTwo().position(), mirror(position)))
     );
-  }
-
-  private GameObject createNewObjectState(Position currentPosition, Position newPosition) {
-    return new GameObject(newPosition, new Speed(newPosition.x() - currentPosition.x(), newPosition.y() - currentPosition.y()));
   }
 }
