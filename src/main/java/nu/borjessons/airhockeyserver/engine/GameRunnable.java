@@ -35,7 +35,9 @@ class GameRunnable implements Runnable {
   }
 
   private static double calculatePuckHandleDistance(Position puckPosition, Position handlePosition) {
-    return Math.sqrt(Math.pow(puckPosition.x() - handlePosition.x(), 2) + Math.pow(puckPosition.y() - handlePosition.y(), 2));
+    return Math.sqrt(
+        Math.pow(puckPosition.x() - handlePosition.x(), 2) +
+            Math.pow((puckPosition.y() - handlePosition.y()) * GameConstants.BOARD_ASPECT_RATIO, 2));
   }
 
   private static BroadcastState createBroadcastState(Position opponentPosition, Position puckPosition) {
