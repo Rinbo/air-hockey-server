@@ -46,6 +46,11 @@ class GameRunnable implements Runnable {
     return new BroadcastState(opponentPosition, puckPosition);
   }
 
+  private static GameObject createNewHandlePositionAndSpeed(Position lastPosition, Position newPosition) {
+    Speed speed = new Speed(newPosition.x() - lastPosition.x(), newPosition.y() - lastPosition.y());
+    return new GameObject(newPosition, speed);
+  }
+
   private static GameObject impartHandleSpeedOnPuck(GameObject puck, GameObject player) {
     return new GameObject(puck.position(), player.speed());
   }
@@ -55,7 +60,10 @@ class GameRunnable implements Runnable {
   }
 
   private static Speed reverseSpeed(Speed speed) {
-    return new Speed(speed.x() * -1, speed.y() * -1);
+    logger.info("oldSpeed: {}", speed);
+    Speed newSpeed = new Speed(speed.x() * -1, speed.y() * -1);
+    logger.info("newSpeed: {}", newSpeed);
+    return newSpeed;
   }
 
   private static Position updatePuckPosition(Position position, Speed speed) {
@@ -75,7 +83,7 @@ class GameRunnable implements Runnable {
       try {
         Collision collision = detectCollision();
         handleCollision(collision);
-        updatePuckPositionAndSpeed();
+        tickBoardState();
         broadcast(playerOneTopic, playerTwoTopic);
         TimeUnit.MILLISECONDS.sleep(1000 / GameConstants.FRAME_RATE);
       } catch (InterruptedException e) {
@@ -162,9 +170,10 @@ class GameRunnable implements Runnable {
     updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
   }
 
-  private void updatePuckPositionAndSpeed() {
+  private void tickBoardState() {
     atomicReference.getAndUpdate(boardState -> {
       GameObject puck = boardState.puck();
+
       Position position = puck.position();
       Speed speed = puck.speed(); // TODO add board friction and max speed
 

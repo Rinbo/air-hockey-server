@@ -31,7 +31,6 @@ public class GameEngine {
 
   private static GameObject createNewHandlePositionAndSpeed(Position currentPosition, Position newPosition) {
     Speed speed = new Speed(newPosition.x() - currentPosition.x(), newPosition.y() - currentPosition.y());
-    //System.out.println("speed: " + speed);
     return new GameObject(newPosition, speed);
   }
 
