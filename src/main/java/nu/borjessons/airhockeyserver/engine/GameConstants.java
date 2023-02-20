@@ -19,9 +19,6 @@ final class GameConstants {
   }
 
   static BoardState createInitialGameState() {
-    return new BoardState(
-        new GameObject(GameConstants.PUCK_START_P1, GameConstants.ZERO_SPEED),
-        new GameObject(HANDLE_START_P1, GameConstants.ZERO_SPEED),
-        new GameObject(HANDLE_START_P2, GameConstants.ZERO_SPEED));
+    return new BoardState(Puck.create(GameConstants.PUCK_START_P1), Handle.create(HANDLE_START_P1), Handle.create(HANDLE_START_P2));
   }
 }

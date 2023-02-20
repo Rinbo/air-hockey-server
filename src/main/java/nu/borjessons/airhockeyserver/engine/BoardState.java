@@ -1,4 +1,4 @@
 package nu.borjessons.airhockeyserver.engine;
 
-record BoardState(GameObject puck, GameObject playerOne, GameObject playerTwo) {
+record BoardState(Puck puck, Handle playerOne, Handle playerTwo) {
 }

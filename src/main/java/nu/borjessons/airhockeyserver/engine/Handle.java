@@ -2,7 +2,7 @@ package nu.borjessons.airhockeyserver.engine;
 
 import java.util.Objects;
 
-final class Handle extends GO {
+final class Handle extends GameObject {
   private Position previousPosition;
 
   private Handle(Position position) {
@@ -16,15 +16,8 @@ final class Handle extends GO {
     return new Handle(position);
   }
 
-  Position getPreviousPosition() {
-    return previousPosition;
-  }
-
-  void setPreviousPosition(Position previousPosition) {
-    this.previousPosition = previousPosition;
-  }
-
   void updateSpeed() {
     setSpeed(new Speed(super.getPosition().x() - previousPosition.x(), super.getPosition().y() - previousPosition.y()));
+    previousPosition = super.getPosition();
   }
 }

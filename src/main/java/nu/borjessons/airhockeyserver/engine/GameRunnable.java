@@ -29,10 +29,6 @@ class GameRunnable implements Runnable {
     this.gameId = gameId;
   }
 
-  private static GameObject bounceOffHandle(GameObject puck) {
-    return new GameObject(puck.position(), reverseSpeed(puck.speed()));
-  }
-
   /**
    * Distance normalized for width
    */
@@ -46,30 +42,8 @@ class GameRunnable implements Runnable {
     return new BroadcastState(opponentPosition, puckPosition);
   }
 
-  private static GameObject createNewHandlePositionAndSpeed(Position lastPosition, Position newPosition) {
-    Speed speed = new Speed(newPosition.x() - lastPosition.x(), newPosition.y() - lastPosition.y());
-    return new GameObject(newPosition, speed);
-  }
-
-  private static GameObject impartHandleSpeedOnPuck(GameObject puck, GameObject player) {
-    return new GameObject(puck.position(), player.speed());
-  }
-
   private static boolean isSpeedZero(Speed speed) {
     return speed.x() == 0 && speed.y() == 0;
-  }
-
-  private static Speed reverseSpeed(Speed speed) {
-    logger.info("oldSpeed: {}", speed);
-    Speed newSpeed = new Speed(speed.x() * -1, speed.y() * -1);
-    logger.info("newSpeed: {}", newSpeed);
-    return newSpeed;
-  }
-
-  private static Position updatePuckPosition(Position position, Speed speed) {
-    double x = Math.max(0, position.x() + speed.x() - GameConstants.PUCK_RADIUS.x());
-    double y = Math.max(0, position.y() + speed.y() - GameConstants.PUCK_RADIUS.y());
-    return new Position(Math.min(1, x + GameConstants.PUCK_RADIUS.x()), Math.min(1, y + GameConstants.PUCK_RADIUS.y()));
   }
 
   @Override
@@ -97,16 +71,16 @@ class GameRunnable implements Runnable {
 
   private void broadcast(String playerOneTopic, String playerTwoTopic) {
     BoardState boardState = atomicReference.get();
-    Position puckPosition = boardState.puck().position();
+    Position puckPosition = boardState.puck().getPosition();
     messagingTemplate.convertAndSend(playerOneTopic,
-        createBroadcastState(boardState.playerTwo().position(), puckPosition));
+        createBroadcastState(boardState.playerTwo().getPosition(), puckPosition));
     messagingTemplate.convertAndSend(playerTwoTopic,
-        createBroadcastState(GameEngine.mirror(boardState.playerOne().position()), GameEngine.mirror(puckPosition)));
+        createBroadcastState(GameEngine.mirror(boardState.playerOne().getPosition()), GameEngine.mirror(puckPosition)));
   }
 
   private Collision detectCollision() {
     BoardState boardState = atomicReference.get();
-    Position puckPosition = boardState.puck().position();
+    Position puckPosition = boardState.puck().getPosition();
 
     if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0)
       return Collision.LEFT_WALL;
@@ -120,10 +94,10 @@ class GameRunnable implements Runnable {
     if ((puckPosition.y() - GameConstants.PUCK_RADIUS.y()) <= 0)
       return Collision.TOP_WALL;
 
-    if (calculatePuckHandleDistance(puckPosition, boardState.playerOne().position()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
+    if (calculatePuckHandleDistance(puckPosition, boardState.playerOne().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
       return Collision.P1_HANDLE;
 
-    if (calculatePuckHandleDistance(puckPosition, boardState.playerTwo().position()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
+    if (calculatePuckHandleDistance(puckPosition, boardState.playerTwo().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
       return Collision.P2_HANDLE;
 
     return Collision.NO_COLLISION;
@@ -148,17 +122,18 @@ class GameRunnable implements Runnable {
     onPlayerHandleCollision(BoardState::playerTwo);
   }
 
-  private void onPlayerHandleCollision(Function<BoardState, GameObject> handleSelector) {
+  private void onPlayerHandleCollision(Function<BoardState, Handle> handleSelector) {
     atomicReference.getAndUpdate(boardState -> {
-      GameObject handle = handleSelector.apply(boardState);
-      GameObject puck = boardState.puck();
+      Speed handleSpeed = handleSelector.apply(boardState).getSpeed();
+      Puck puck = boardState.puck();
 
-      GameObject newPuckState = isSpeedZero(handle.speed()) ? bounceOffHandle(puck) : impartHandleSpeedOnPuck(puck, handle);
+      if (isSpeedZero(handleSpeed)) {
+        puck.ricochet();
+      } else {
+        puck.setSpeed(handleSpeed);
+      }
 
-      return new BoardState(
-          newPuckState,
-          boardState.playerOne(),
-          boardState.playerTwo());
+      return new BoardState(puck, boardState.playerOne(), boardState.playerTwo());
     });
   }
 
@@ -172,26 +147,25 @@ class GameRunnable implements Runnable {
 
   private void tickBoardState() {
     atomicReference.getAndUpdate(boardState -> {
-      GameObject puck = boardState.puck();
+      Puck puck = boardState.puck();
+      puck.move();
 
-      Position position = puck.position();
-      Speed speed = puck.speed(); // TODO add board friction and max speed
+      Handle playerOne = boardState.playerOne();
+      playerOne.updateSpeed();
 
-      return new BoardState(
-          new GameObject(updatePuckPosition(position, speed), speed),
-          boardState.playerOne(),
-          boardState.playerTwo());
+      Handle playerTwo = boardState.playerTwo();
+      playerTwo.updateSpeed();
+
+      return new BoardState(puck, playerOne, playerTwo);
     });
   }
 
   private void updatePuckSpeed(UnaryOperator<Speed> speedUpdater) {
     atomicReference.getAndUpdate(boardState -> {
-      GameObject puck = boardState.puck();
+      Puck puck = boardState.puck();
+      puck.setSpeed(speedUpdater.apply(puck.getSpeed()));
 
-      return new BoardState(
-          new GameObject(puck.position(), speedUpdater.apply(puck.speed())),
-          boardState.playerOne(),
-          boardState.playerTwo());
+      return new BoardState(puck, boardState.playerOne(), boardState.playerTwo());
     });
   }
 }
