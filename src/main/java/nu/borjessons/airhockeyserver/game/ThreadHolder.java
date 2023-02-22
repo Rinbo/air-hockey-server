@@ -1,4 +1,4 @@
-package nu.borjessons.airhockeyserver.engine;
+package nu.borjessons.airhockeyserver.game;
 
 import java.util.Optional;
 

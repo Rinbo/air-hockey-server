@@ -1,8 +1,8 @@
-package nu.borjessons.airhockeyserver.engine;
+package nu.borjessons.airhockeyserver.game;
 
-import nu.borjessons.airhockeyserver.engine.properties.Position;
-import nu.borjessons.airhockeyserver.engine.properties.Size;
-import nu.borjessons.airhockeyserver.engine.properties.Speed;
+import nu.borjessons.airhockeyserver.game.properties.Position;
+import nu.borjessons.airhockeyserver.game.properties.Size;
+import nu.borjessons.airhockeyserver.game.properties.Speed;
 
 /**
  * Based on HTML Canvas default coordinate system where the origin is in the top left corner

@@ -1,8 +1,7 @@
-package nu.borjessons.airhockeyserver.engine;
+package nu.borjessons.airhockeyserver.game;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
@@ -10,23 +9,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
-import nu.borjessons.airhockeyserver.engine.properties.Position;
-import nu.borjessons.airhockeyserver.engine.properties.Speed;
+import nu.borjessons.airhockeyserver.game.properties.Position;
+import nu.borjessons.airhockeyserver.game.properties.Speed;
 import nu.borjessons.airhockeyserver.model.GameId;
 
 class GameRunnable implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
 
-  private final AtomicReference<BoardState> atomicReference;
+  private final BoardState boardState;
   private final GameId gameId;
   private final SimpMessagingTemplate messagingTemplate;
 
-  public GameRunnable(AtomicReference<BoardState> atomicReference, GameId gameId, SimpMessagingTemplate messagingTemplate) {
-    Objects.requireNonNull(atomicReference, "atomicReference must not be null");
+  public GameRunnable(BoardState boardState, GameId gameId, SimpMessagingTemplate messagingTemplate) {
+    Objects.requireNonNull(boardState, "boardState must not be null");
     Objects.requireNonNull(gameId, "gameId must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
 
-    this.atomicReference = atomicReference;
+    this.boardState = boardState;
     this.messagingTemplate = messagingTemplate;
     this.gameId = gameId;
   }
@@ -72,7 +71,6 @@ class GameRunnable implements Runnable {
   }
 
   private void broadcast(String playerOneTopic, String playerTwoTopic) {
-    BoardState boardState = atomicReference.get();
     Position puckPosition = boardState.puck().getPosition();
     messagingTemplate.convertAndSend(playerOneTopic,
         createBroadcastState(boardState.playerTwo().getPosition(), puckPosition));
@@ -81,7 +79,6 @@ class GameRunnable implements Runnable {
   }
 
   private Collision detectCollision() {
-    BoardState boardState = atomicReference.get();
     Position puckPosition = boardState.puck().getPosition();
 
     if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0)
@@ -125,18 +122,14 @@ class GameRunnable implements Runnable {
   }
 
   private void onPlayerHandleCollision(Function<BoardState, Handle> handleSelector) {
-    atomicReference.getAndUpdate(boardState -> {
-      Speed handleSpeed = handleSelector.apply(boardState).getSpeed();
-      Puck puck = boardState.puck();
+    Speed handleSpeed = handleSelector.apply(boardState).getSpeed();
+    Puck puck = boardState.puck();
 
-      if (isSpeedZero(handleSpeed)) {
-        puck.ricochet();
-      } else {
-        puck.setSpeed(handleSpeed);
-      }
-
-      return new BoardState(puck, boardState.playerOne(), boardState.playerTwo());
-    });
+    if (isSpeedZero(handleSpeed)) {
+      puck.ricochet();
+    } else {
+      puck.setSpeed(handleSpeed);
+    }
   }
 
   private void reversePuckXDirection() {
@@ -148,26 +141,18 @@ class GameRunnable implements Runnable {
   }
 
   private void tickBoardState() {
-    atomicReference.getAndUpdate(boardState -> {
-      Puck puck = boardState.puck();
-      puck.move();
+    Puck puck = boardState.puck();
+    puck.move();
 
-      Handle playerOne = boardState.playerOne();
-      playerOne.updateSpeed();
+    Handle playerOne = boardState.playerOne();
+    playerOne.updateSpeed();
 
-      Handle playerTwo = boardState.playerTwo();
-      playerTwo.updateSpeed();
-
-      return new BoardState(puck, playerOne, playerTwo);
-    });
+    Handle playerTwo = boardState.playerTwo();
+    playerTwo.updateSpeed();
   }
 
   private void updatePuckSpeed(UnaryOperator<Speed> speedUpdater) {
-    atomicReference.getAndUpdate(boardState -> {
-      Puck puck = boardState.puck();
-      puck.setSpeed(speedUpdater.apply(puck.getSpeed()));
-
-      return new BoardState(puck, boardState.playerOne(), boardState.playerTwo());
-    });
+    Puck puck = boardState.puck();
+    puck.setSpeed(speedUpdater.apply(puck.getSpeed()));
   }
 }

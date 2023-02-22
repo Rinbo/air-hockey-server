@@ -13,8 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
-import nu.borjessons.airhockeyserver.engine.GameEngine;
-import nu.borjessons.airhockeyserver.engine.properties.Position;
+import nu.borjessons.airhockeyserver.game.GameEngine;
+import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.GameState;

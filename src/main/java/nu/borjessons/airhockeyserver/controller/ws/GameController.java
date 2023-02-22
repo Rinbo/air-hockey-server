@@ -12,7 +12,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import nu.borjessons.airhockeyserver.controller.security.GameValidator;
-import nu.borjessons.airhockeyserver.engine.properties.Position;
+import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.AuthRecord;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.Notification;
