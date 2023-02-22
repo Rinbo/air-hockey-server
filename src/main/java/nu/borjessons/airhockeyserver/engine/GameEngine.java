@@ -5,20 +5,21 @@ import java.util.function.Supplier;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import nu.borjessons.airhockeyserver.engine.properties.Position;
 import nu.borjessons.airhockeyserver.model.GameId;
 
 public class GameEngine {
   private final AtomicReference<BoardState> boardStateReference;
-  private final AtomicReference<Thread> gameThreadReference;
+  private final ThreadHolder threadHolder;
 
-  private GameEngine(AtomicReference<BoardState> boardStateReference, AtomicReference<Thread> thread) {
+  private GameEngine(AtomicReference<BoardState> boardStateReference, ThreadHolder threadHolder) {
     this.boardStateReference = boardStateReference;
-    this.gameThreadReference = thread;
+    this.threadHolder = threadHolder;
   }
 
   public static GameEngine create() {
     AtomicReference<BoardState> atomicReference = new AtomicReference<>(GameConstants.createInitialGameState());
-    return new GameEngine(atomicReference, new AtomicReference<>());
+    return new GameEngine(atomicReference, new ThreadHolder());
   }
 
   static Position mirror(Position position) {
@@ -34,14 +35,11 @@ public class GameEngine {
   public void startGame(GameId gameId, SimpMessagingTemplate messagingTemplate) {
     Thread thread = new Thread(new GameRunnable(boardStateReference, gameId, messagingTemplate));
     thread.start();
-    gameThreadReference.set(thread);
+    threadHolder.setThread(thread);
   }
 
   public void terminate() {
-    Thread thread = gameThreadReference.get();
-    if (thread != null) {
-      thread.interrupt();
-    }
+    threadHolder.getThread().ifPresent(Thread::interrupt);
   }
 
   public void updatePlayerOneHandle(Position position) {

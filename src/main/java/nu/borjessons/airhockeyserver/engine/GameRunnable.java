@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import nu.borjessons.airhockeyserver.engine.properties.Position;
+import nu.borjessons.airhockeyserver.engine.properties.Speed;
 import nu.borjessons.airhockeyserver.model.GameId;
 
 class GameRunnable implements Runnable {

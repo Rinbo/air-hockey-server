@@ -1,5 +1,8 @@
 package nu.borjessons.airhockeyserver.engine;
 
+import nu.borjessons.airhockeyserver.engine.properties.Position;
+import nu.borjessons.airhockeyserver.engine.properties.Speed;
+
 abstract class GameObject {
   private Position position;
   private Speed speed;

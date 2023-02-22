@@ -1,9 +1,13 @@
 package nu.borjessons.airhockeyserver.engine;
 
+import nu.borjessons.airhockeyserver.engine.properties.Position;
+import nu.borjessons.airhockeyserver.engine.properties.Size;
+import nu.borjessons.airhockeyserver.engine.properties.Speed;
+
 /**
  * Based on HTML Canvas default coordinate system where the origin is in the top left corner
  */
-final class GameConstants {
+public final class GameConstants {
   static final double BOARD_ASPECT_RATIO = 0.625;
   static final int FRAME_RATE = 40;
   static final Size HANDLE_RADIUS = new Size(0.1, 0.1 * BOARD_ASPECT_RATIO);
@@ -18,7 +22,7 @@ final class GameConstants {
     throw new IllegalStateException();
   }
 
-  static BoardState createInitialGameState() {
+  public static BoardState createInitialGameState() {
     return new BoardState(Puck.create(GameConstants.PUCK_START_P1), Handle.create(HANDLE_START_P1), Handle.create(HANDLE_START_P2));
   }
 }

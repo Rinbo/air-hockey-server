@@ -2,6 +2,9 @@ package nu.borjessons.airhockeyserver.engine;
 
 import java.util.Objects;
 
+import nu.borjessons.airhockeyserver.engine.properties.Position;
+import nu.borjessons.airhockeyserver.engine.properties.Speed;
+
 final class Handle extends GameObject {
   private Position previousPosition;
 
