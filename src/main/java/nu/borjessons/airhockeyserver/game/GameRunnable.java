@@ -72,8 +72,7 @@ class GameRunnable implements Runnable {
 
   private void broadcast(String playerOneTopic, String playerTwoTopic) {
     Position puckPosition = boardState.puck().getPosition();
-    messagingTemplate.convertAndSend(playerOneTopic,
-        createBroadcastState(boardState.playerTwo().getPosition(), puckPosition));
+    messagingTemplate.convertAndSend(playerOneTopic, createBroadcastState(boardState.playerTwo().getPosition(), puckPosition));
     messagingTemplate.convertAndSend(playerTwoTopic,
         createBroadcastState(GameEngine.mirror(boardState.playerOne().getPosition()), GameEngine.mirror(puckPosition)));
   }
@@ -104,21 +103,13 @@ class GameRunnable implements Runnable {
 
   private void handleCollision(Collision collision) {
     switch (collision) {
-      case LEFT_WALL, RIGHT_WALL -> reversePuckXDirection();
-      case TOP_WALL, BOTTOM_WALL -> reversePuckYDirection();
-      case P1_HANDLE -> onP1HandleCollision();
-      case P2_HANDLE -> onP2HandleCollision();
+      case LEFT_WALL, RIGHT_WALL -> updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
+      case TOP_WALL, BOTTOM_WALL -> updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
+      case P1_HANDLE -> onPlayerHandleCollision(BoardState::playerOne);
+      case P2_HANDLE -> onPlayerHandleCollision(BoardState::playerTwo);
       case NO_COLLISION -> logger.debug("no collision");
       default -> logger.warn("unknown collision type: {}", collision);
     }
-  }
-
-  private void onP1HandleCollision() {
-    onPlayerHandleCollision(BoardState::playerOne);
-  }
-
-  private void onP2HandleCollision() {
-    onPlayerHandleCollision(BoardState::playerTwo);
   }
 
   private void onPlayerHandleCollision(Function<BoardState, Handle> handleSelector) {
@@ -132,23 +123,10 @@ class GameRunnable implements Runnable {
     }
   }
 
-  private void reversePuckXDirection() {
-    updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
-  }
-
-  private void reversePuckYDirection() {
-    updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
-  }
-
   private void tickBoardState() {
-    Puck puck = boardState.puck();
-    puck.move();
-
-    Handle playerOne = boardState.playerOne();
-    playerOne.updateSpeed();
-
-    Handle playerTwo = boardState.playerTwo();
-    playerTwo.updateSpeed();
+    boardState.puck().move();
+    boardState.playerOne().updateSpeed();
+    boardState.playerTwo().updateSpeed();
   }
 
   private void updatePuckSpeed(UnaryOperator<Speed> speedUpdater) {

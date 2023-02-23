@@ -6,10 +6,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.game.properties.Speed;
 
-final class Handle {
+public final class Handle {
   private Position position;
   private Position previousPosition;
-  private AtomicReference<Speed> speedReference;
+  private final AtomicReference<Speed> speedReference;
 
   private Handle(Position position) {
     this.position = position;

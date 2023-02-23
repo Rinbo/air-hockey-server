@@ -1,5 +1,7 @@
 package nu.borjessons.airhockeyserver.game;
 
+import java.util.function.Function;
+
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import nu.borjessons.airhockeyserver.game.properties.Position;
@@ -32,11 +34,7 @@ public class GameEngine {
     threadHolder.getThread().ifPresent(Thread::interrupt);
   }
 
-  public void updatePlayerOneHandle(Position position) {
-    boardState.playerOne().setPosition(position);
-  }
-
-  public void updatePlayerTwoHandle(Position position) {
-    boardState.playerTwo().setPosition(mirror(position));
+  public void updateHandle(Function<BoardState, Handle> function, Position position) {
+    function.apply(boardState).setPosition(position);
   }
 }

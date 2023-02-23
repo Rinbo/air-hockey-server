@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import nu.borjessons.airhockeyserver.game.BoardState;
 import nu.borjessons.airhockeyserver.game.GameEngine;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.Agency;
@@ -110,8 +111,8 @@ public class GameStore {
     }
 
     switch (agency) {
-      case PLAYER_1 -> gameEngine.updatePlayerOneHandle(position);
-      case PLAYER_2 -> gameEngine.updatePlayerTwoHandle(position);
+      case PLAYER_1 -> gameEngine.updateHandle(BoardState::playerOne, position);
+      case PLAYER_2 -> gameEngine.updateHandle(BoardState::playerTwo, position);
     }
   }
 }
