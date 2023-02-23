@@ -1,6 +1,7 @@
 package nu.borjessons.airhockeyserver.game;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.game.properties.Speed;
@@ -8,12 +9,12 @@ import nu.borjessons.airhockeyserver.game.properties.Speed;
 final class Handle {
   private Position position;
   private Position previousPosition;
-  private Speed speed;
+  private AtomicReference<Speed> speedReference;
 
   private Handle(Position position) {
     this.position = position;
     this.previousPosition = position;
-    this.speed = GameConstants.ZERO_SPEED;
+    this.speedReference = new AtomicReference<>(GameConstants.ZERO_SPEED);
   }
 
   static Handle create(Position position) {
@@ -30,12 +31,12 @@ final class Handle {
     return position;
   }
 
-  synchronized Speed getSpeed() {
-    return speed;
+  Speed getSpeed() {
+    return speedReference.get();
   }
 
-  synchronized void setSpeed(Speed speed) {
-    this.speed = speed;
+  void setSpeed(Speed speed) {
+    speedReference.set(speed);
   }
 
   void updateSpeed() {
