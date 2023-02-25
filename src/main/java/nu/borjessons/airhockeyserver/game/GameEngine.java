@@ -4,6 +4,8 @@ import java.util.function.Function;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import nu.borjessons.airhockeyserver.game.objects.Handle;
+import nu.borjessons.airhockeyserver.game.properties.GameConstants;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.GameId;
 

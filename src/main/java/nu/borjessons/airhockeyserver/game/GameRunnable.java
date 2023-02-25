@@ -9,8 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import nu.borjessons.airhockeyserver.game.objects.Handle;
+import nu.borjessons.airhockeyserver.game.objects.Puck;
+import nu.borjessons.airhockeyserver.game.properties.Collision;
+import nu.borjessons.airhockeyserver.game.properties.GameConstants;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.game.properties.Speed;
+import nu.borjessons.airhockeyserver.game.properties.Vector;
 import nu.borjessons.airhockeyserver.model.GameId;
 
 class GameRunnable implements Runnable {
@@ -31,12 +36,12 @@ class GameRunnable implements Runnable {
   }
 
   /**
-   * Distance normalized for width
+   * y-distance normalized for width by dividing by board aspect ratio
    */
   private static double calculatePuckHandleDistance(Position puckPosition, Position handlePosition) {
-    return Math.sqrt(
-        Math.pow(puckPosition.x() - handlePosition.x(), 2) +
-            Math.pow((puckPosition.y() - handlePosition.y()) / GameConstants.BOARD_ASPECT_RATIO, 2));
+    double xDiff = puckPosition.x() - handlePosition.x();
+    double yDiff = puckPosition.y() - handlePosition.y();
+    return Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff / GameConstants.BOARD_ASPECT_RATIO, 2));
   }
 
   private static BroadcastState createBroadcastState(Position opponentPosition, Position puckPosition) {
@@ -72,31 +77,21 @@ class GameRunnable implements Runnable {
 
   private void broadcast(String playerOneTopic, String playerTwoTopic) {
     Position puckPosition = boardState.puck().getPosition();
-    messagingTemplate.convertAndSend(playerOneTopic, createBroadcastState(boardState.playerTwo().getPosition(), puckPosition));
-    messagingTemplate.convertAndSend(playerTwoTopic,
-        createBroadcastState(GameEngine.mirror(boardState.playerOne().getPosition()), GameEngine.mirror(puckPosition)));
+    Position playerOneHandlePosition = boardState.playerOne().getPosition();
+    Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
+    messagingTemplate.convertAndSend(playerOneTopic, createBroadcastState(playerTwoHandlePosition, puckPosition));
+    messagingTemplate.convertAndSend(playerTwoTopic, createBroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition)));
   }
 
   private Collision detectCollision() {
     Position puckPosition = boardState.puck().getPosition();
 
-    if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0)
-      return Collision.LEFT_WALL;
-
-    if ((puckPosition.x() + GameConstants.PUCK_RADIUS.x()) >= 1)
-      return Collision.RIGHT_WALL;
-
-    if ((puckPosition.y() + GameConstants.PUCK_RADIUS.y()) >= 1)
-      return Collision.BOTTOM_WALL;
-
-    if ((puckPosition.y() - GameConstants.PUCK_RADIUS.y()) <= 0)
-      return Collision.TOP_WALL;
-
-    if (calculatePuckHandleDistance(puckPosition, boardState.playerOne().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
-      return Collision.P1_HANDLE;
-
-    if (calculatePuckHandleDistance(puckPosition, boardState.playerTwo().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
-      return Collision.P2_HANDLE;
+    if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0) return Collision.LEFT_WALL;
+    if ((puckPosition.x() + GameConstants.PUCK_RADIUS.x()) >= 1) return Collision.RIGHT_WALL;
+    if ((puckPosition.y() + GameConstants.PUCK_RADIUS.y()) >= 1) return Collision.BOTTOM_WALL;
+    if ((puckPosition.y() - GameConstants.PUCK_RADIUS.y()) <= 0) return Collision.TOP_WALL;
+    if (calculatePuckHandleDistance(puckPosition, boardState.playerOne().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE) return Collision.P1_HANDLE;
+    if (calculatePuckHandleDistance(puckPosition, boardState.playerTwo().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE) return Collision.P2_HANDLE;
 
     return Collision.NO_COLLISION;
   }
@@ -113,12 +108,23 @@ class GameRunnable implements Runnable {
   }
 
   private void onPlayerHandleCollision(Function<BoardState, Handle> handleSelector) {
-    Speed handleSpeed = handleSelector.apply(boardState).getSpeed();
+    Handle handle = handleSelector.apply(boardState);
+    Speed handleSpeed = handle.getSpeed();
     Puck puck = boardState.puck();
 
+    // TODO here we first make sure handle and puck are not overlapping
+    // The calculations made here could be of use in the ricochet calculation?
+
+    // 1. Impact vector
+    Position pPos = puck.getPosition();
+    Position hPos = handle.getPosition();
+    Vector impactVector = new Vector(pPos.x() - hPos.x(), pPos.y() - hPos.y());
+
     if (isSpeedZero(handleSpeed)) {
+      // TODO here we determine the axis between puck and handle center lines and ricochet in that direction
       puck.ricochet();
     } else {
+      // TODO maybe also include some of the pucks current speed?
       puck.setSpeed(handleSpeed);
     }
   }

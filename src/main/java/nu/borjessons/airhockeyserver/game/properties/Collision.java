@@ -1,4 +1,4 @@
-package nu.borjessons.airhockeyserver.game;
+package nu.borjessons.airhockeyserver.game.properties;
 
 public enum Collision {
   LEFT_WALL,
