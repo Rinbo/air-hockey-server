@@ -4,21 +4,26 @@ import java.util.Objects;
 
 import nu.borjessons.airhockeyserver.game.properties.GameConstants;
 import nu.borjessons.airhockeyserver.game.properties.Position;
+import nu.borjessons.airhockeyserver.game.properties.Radius;
 import nu.borjessons.airhockeyserver.game.properties.Speed;
 
 public final class Puck extends Circle {
   private Speed speed;
 
-  private Puck(Position position) {
-    super(position, GameConstants.PUCK_RADIUS);
+  private Puck(Position position, Radius radius) {
+    super(position, radius);
 
     speed = GameConstants.ZERO_SPEED;
   }
 
   public static Puck create(Position position) {
+    return Puck.create(position, GameConstants.PUCK_RADIUS);
+  }
+
+  public static Puck create(Position position, Radius radius) {
     Objects.requireNonNull(position, "position must not be null");
 
-    return new Puck(position);
+    return new Puck(position, radius);
   }
 
   public Speed getSpeed() {

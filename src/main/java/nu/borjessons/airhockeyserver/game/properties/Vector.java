@@ -1,7 +1,9 @@
 package nu.borjessons.airhockeyserver.game.properties;
 
 /**
- * If  angle could be expressed so that using the angle to get the hypotenuse
+ * Since the position is expressed a percentage of board width and height,
+ * the angle between them must be normalized with respect to one axis. In this
+ * implementation the width is chosen.
  */
 public record Vector(double x, double y) {
   public static Vector from(Position position1, Position position2) {
@@ -9,7 +11,7 @@ public record Vector(double x, double y) {
   }
 
   public double angle() {
-    return Math.atan(y / x); // TODO Remember the annoyance with the board aspect ratio
+    return angle(GameConstants.BOARD_ASPECT_RATIO);
   }
 
   public double angle(double aspectRatio) {

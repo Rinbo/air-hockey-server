@@ -20,6 +20,11 @@ public abstract class Circle {
     return radius;
   }
 
+  public Position getRadiusEdgePosition(double angle) {
+    Radius projection = getRadius().getAngledProjection(angle);
+    return new Position(position.x() + projection.x(), position.y() + projection.y());
+  }
+
   public void setPosition(Position position) {
     this.position = position;
   }
