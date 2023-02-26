@@ -11,7 +11,7 @@ class VectorTest {
    */
   @Test
   void angleTest() {
-    Vector vector = Vector.from(TestUtils.PUCK_POS, TestUtils.HANDLE_POS);
+    Vector vector = Vector.from(TestUtils.HANDLE_POS, TestUtils.PUCK_POS);
     double angle = vector.angle(TestUtils.BOARD_ASPECT_RATIO);
     double hypotenuseRelativeToWidth = TestUtils.X_DIFF / Math.cos(angle);
     double hypotenuseRelativeToHeight = TestUtils.Y_DIFF / Math.sin(angle);

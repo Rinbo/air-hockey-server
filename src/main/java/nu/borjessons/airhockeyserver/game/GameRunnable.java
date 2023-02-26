@@ -120,10 +120,9 @@ class GameRunnable implements Runnable {
 
     // The calculations made here could be of use in the ricochet calculation?
 
-    // 1. Impact vector
     Position pPos = puck.getPosition();
     Position hPos = handle.getPosition();
-    Vector impactVector = new Vector(pPos.x() - hPos.x(), pPos.y() - hPos.y());
+    Vector impactVector = Vector.from(hPos, pPos);
     puck.offsetCollisionWith(handle, impactVector.angle());
 
     if (isSpeedZero(handleSpeed)) {

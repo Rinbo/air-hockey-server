@@ -12,7 +12,7 @@ class PuckTest {
   void puckRadiusTest() {
     Radius radius = new Radius(0.08, 0.08 * TestUtils.BOARD_ASPECT_RATIO);
     Puck puck = Puck.create(TestUtils.PUCK_POS, radius);
-    Vector vector = Vector.from(puck.getPosition(), TestUtils.HANDLE_POS);
+    Vector vector = Vector.from(TestUtils.HANDLE_POS, puck.getPosition());
     double angle = vector.angle(TestUtils.BOARD_ASPECT_RATIO);
 
     double xr = Math.cos(angle) * radius.x();

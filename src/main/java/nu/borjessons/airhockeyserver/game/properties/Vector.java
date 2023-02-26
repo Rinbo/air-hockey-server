@@ -15,6 +15,6 @@ public record Vector(double x, double y) {
   }
 
   public double angle(double aspectRatio) {
-    return Math.atan((y / aspectRatio) / x);
+    return Math.atan2((y / aspectRatio), x);
   }
 }
