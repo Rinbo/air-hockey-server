@@ -22,7 +22,7 @@ public class GameEngine {
     return new GameEngine(GameConstants.createInitialGameState(), new ThreadHolder());
   }
 
-  static Position mirror(Position position) {
+  public static Position mirror(Position position) {
     return new Position(1 - position.x(), 1 - position.y());
   }
 

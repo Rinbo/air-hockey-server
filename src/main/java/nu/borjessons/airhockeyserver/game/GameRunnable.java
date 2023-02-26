@@ -86,12 +86,18 @@ class GameRunnable implements Runnable {
   private Collision detectCollision() {
     Position puckPosition = boardState.puck().getPosition();
 
-    if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0) return Collision.LEFT_WALL;
-    if ((puckPosition.x() + GameConstants.PUCK_RADIUS.x()) >= 1) return Collision.RIGHT_WALL;
-    if ((puckPosition.y() + GameConstants.PUCK_RADIUS.y()) >= 1) return Collision.BOTTOM_WALL;
-    if ((puckPosition.y() - GameConstants.PUCK_RADIUS.y()) <= 0) return Collision.TOP_WALL;
-    if (calculatePuckHandleDistance(puckPosition, boardState.playerOne().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE) return Collision.P1_HANDLE;
-    if (calculatePuckHandleDistance(puckPosition, boardState.playerTwo().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE) return Collision.P2_HANDLE;
+    if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0)
+      return Collision.LEFT_WALL;
+    if ((puckPosition.x() + GameConstants.PUCK_RADIUS.x()) >= 1)
+      return Collision.RIGHT_WALL;
+    if ((puckPosition.y() + GameConstants.PUCK_RADIUS.y()) >= 1)
+      return Collision.BOTTOM_WALL;
+    if ((puckPosition.y() - GameConstants.PUCK_RADIUS.y()) <= 0)
+      return Collision.TOP_WALL;
+    if (calculatePuckHandleDistance(puckPosition, boardState.playerOne().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
+      return Collision.P1_HANDLE;
+    if (calculatePuckHandleDistance(puckPosition, boardState.playerTwo().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE)
+      return Collision.P2_HANDLE;
 
     return Collision.NO_COLLISION;
   }
@@ -112,13 +118,13 @@ class GameRunnable implements Runnable {
     Speed handleSpeed = handle.getSpeed();
     Puck puck = boardState.puck();
 
-    // TODO here we first make sure handle and puck are not overlapping
     // The calculations made here could be of use in the ricochet calculation?
 
     // 1. Impact vector
     Position pPos = puck.getPosition();
     Position hPos = handle.getPosition();
     Vector impactVector = new Vector(pPos.x() - hPos.x(), pPos.y() - hPos.y());
+    puck.offsetCollisionWith(handle, impactVector.angle());
 
     if (isSpeedZero(handleSpeed)) {
       // TODO here we determine the axis between puck and handle center lines and ricochet in that direction

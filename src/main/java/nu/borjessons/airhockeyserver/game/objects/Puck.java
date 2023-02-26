@@ -38,6 +38,17 @@ public final class Puck extends Circle {
     setPosition(new Position(Math.min(1, x + GameConstants.PUCK_RADIUS.x()), Math.min(1, y + GameConstants.PUCK_RADIUS.y())));
   }
 
+  public void offsetCollisionWith(Handle handle, double angle) {
+    Position handleRadiusEdgePos = handle.getRadiusEdgePosition(angle);
+    Position puckRadiusEdgePosition = super.getRadiusEdgePosition(angle);
+
+    Position position = getPosition();
+    double xOffset = puckRadiusEdgePosition.x() - handleRadiusEdgePos.x();
+    double yOffset = puckRadiusEdgePosition.y() - handleRadiusEdgePos.y();
+    System.out.println("xOffset: " + xOffset + " yOffset: " + yOffset);
+    setPosition(new Position(position.x() + xOffset, position.y() + yOffset));
+  }
+
   public void ricochet() {
     speed = new Speed(speed.x() * -1, speed.y() * -1);
   }

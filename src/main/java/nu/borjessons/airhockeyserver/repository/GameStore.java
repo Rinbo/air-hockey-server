@@ -112,7 +112,7 @@ public class GameStore {
 
     switch (agency) {
       case PLAYER_1 -> gameEngine.updateHandle(BoardState::playerOne, position);
-      case PLAYER_2 -> gameEngine.updateHandle(BoardState::playerTwo, position);
+      case PLAYER_2 -> gameEngine.updateHandle(BoardState::playerTwo, GameEngine.mirror(position));
     }
   }
 }
