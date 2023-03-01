@@ -2,10 +2,7 @@ package nu.borjessons.airhockeyserver.game;
 
 import nu.borjessons.airhockeyserver.game.objects.Handle;
 import nu.borjessons.airhockeyserver.game.objects.Puck;
-import nu.borjessons.airhockeyserver.game.properties.Collision;
-import nu.borjessons.airhockeyserver.game.properties.GameConstants;
-import nu.borjessons.airhockeyserver.game.properties.Position;
-import nu.borjessons.airhockeyserver.game.properties.Speed;
+import nu.borjessons.airhockeyserver.game.properties.*;
 import nu.borjessons.airhockeyserver.model.GameId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,13 +115,12 @@ class GameRunnable implements Runnable {
 
         // The calculations made here could be of use in the ricochet calculation?
 
-        /*Position pPos = puck.getPosition();
+        Position pPos = puck.getPosition();
         Position hPos = handle.getPosition();
         Vector impactVector = Vector.from(hPos, pPos);
         puck.offsetCollisionWith(handle, impactVector.angle());
-*/
+
         if (isSpeedZero(handleSpeed)) {
-            // TODO here we determine the axis between puck and handle center lines and ricochet in that direction
             puck.ricochet(handle);
         } else {
             // TODO maybe also include some of the pucks current speed?

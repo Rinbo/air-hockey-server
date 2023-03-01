@@ -43,19 +43,26 @@ public final class Puck extends Circle {
         setPosition(new Position(Math.min(1, x + GameConstants.PUCK_RADIUS.x()), Math.min(1, y + GameConstants.PUCK_RADIUS.y())));
     }
 
+
+    // TODO rethink this - you nonw the vector on which the puck should pe positioned. Just use the angled
+    // projections of the radius on that line and explicitly position it there
     public void offsetCollisionWith(Handle handle, double angle) {
-        Position handleRadiusEdgePos = handle.getRadiusEdgePosition(angle + Math.PI);
+        /*Position handleRadiusEdgePos = handle.getRadiusEdgePosition(angle + Math.PI);
         Position puckRadiusEdgePosition = super.getRadiusEdgePosition(angle);
 
         Position position = getPosition();
         double xOffset = handleRadiusEdgePos.x() - puckRadiusEdgePosition.x();
         double yOffset = handleRadiusEdgePos.y() - puckRadiusEdgePosition.y();
-        setPosition(new Position(position.x() + xOffset, position.y() - yOffset));
+        setPosition(new Position(position.x() + xOffset, position.y() - yOffset));*/
+        Radius puckRadius = getRadius().getAngledProjection(angle);
+        Radius handleRadius = handle.getRadius().getAngledProjection(angle);
+        Position position = getPosition();
+        setPosition(new Position(position.x() - puckRadius.x() - handleRadius.x(), position.y() - puckRadius.x() - handleRadius.x()));
     }
 
     public void ricochet(Handle handle) {
         Vector vector = Vector.from(handle.getPosition(), getPosition());
-        double scalar = dotProduct(speed, vector) / dotProduct(Speed.from(vector), vector);
+        double scalar = dotProduct(speed, vector) / dotProduct(Speed.from(vector), vector) * -1;
 
         speed = new Speed(vector.x() * scalar, vector.y() * scalar);
     }
