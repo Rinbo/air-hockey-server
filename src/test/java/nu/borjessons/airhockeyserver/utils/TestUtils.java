@@ -20,12 +20,12 @@ public class TestUtils {
 
     // @formatter:off
     public static final double ALLOWED_DELTA = 0.0001;
-    public static final int BOARD_HEIGHT = 500;
+    public static final int BOARD_HEIGHT = 400;
     public static final int BOARD_WIDTH = 200;
     public static final double BOARD_ASPECT_RATIO = (double) BOARD_WIDTH / BOARD_HEIGHT;
-    public static final Position HANDLE_POS_REAL = new Position(50, 50);
+    public static final Position HANDLE_POS_REAL = new Position(65, 55);
     public static final Position HANDLE_POS = new Position(HANDLE_POS_REAL.x() / BOARD_WIDTH, HANDLE_POS_REAL.y() / BOARD_HEIGHT);
-    public static final Position PUCK_POS_REAL = new Position(25, 75);
+    public static final Position PUCK_POS_REAL = new Position(45, 75);
     public static final double Y_DIFF_REAL = PUCK_POS_REAL.y() - HANDLE_POS_REAL.y();
     public static final double X_DIFF_REAL = PUCK_POS_REAL.x() - HANDLE_POS_REAL.x();
     public static final double ANGLE_REAL = Math.atan(Y_DIFF_REAL / X_DIFF_REAL);
@@ -33,6 +33,10 @@ public class TestUtils {
     public static final double Y_DIFF = PUCK_POS.y() - HANDLE_POS.y();
     public static final double X_DIFF = PUCK_POS.x() - HANDLE_POS.x();
     // @formatter:on
+
+    public static Position createPosition(double x, double y) {
+        return new Position(x / BOARD_WIDTH, y / BOARD_HEIGHT);
+    }
 
     public static GameStore createGameStore() {
         GameStore gameStore = new GameStore(GAME_ID);

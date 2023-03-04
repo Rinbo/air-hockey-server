@@ -13,12 +13,17 @@ public final class Puck extends Circle {
         speed = GameConstants.ZERO_SPEED;
     }
 
+    public static Puck copyOf(Puck puck) {
+        return Puck.create(puck.getPosition(), puck.getRadius());
+    }
+
     public static Puck create(Position position) {
         return Puck.create(position, GameConstants.PUCK_RADIUS);
     }
 
     public static Puck create(Position position, Radius radius) {
         Objects.requireNonNull(position, "position must not be null");
+        Objects.requireNonNull(radius, "radius must not be null");
 
         return new Puck(position, radius);
     }
@@ -44,20 +49,14 @@ public final class Puck extends Circle {
     }
 
 
-    // TODO rethink this - you nonw the vector on which the puck should pe positioned. Just use the angled
-    // projections of the radius on that line and explicitly position it there
     public void offsetCollisionWith(Handle handle, double angle) {
-        /*Position handleRadiusEdgePos = handle.getRadiusEdgePosition(angle + Math.PI);
+        Position handleRadiusEdgePos = handle.getRadiusEdgePosition(angle + Math.PI);
         Position puckRadiusEdgePosition = super.getRadiusEdgePosition(angle);
 
         Position position = getPosition();
         double xOffset = handleRadiusEdgePos.x() - puckRadiusEdgePosition.x();
         double yOffset = handleRadiusEdgePos.y() - puckRadiusEdgePosition.y();
-        setPosition(new Position(position.x() + xOffset, position.y() - yOffset));*/
-        Radius puckRadius = getRadius().getAngledProjection(angle);
-        Radius handleRadius = handle.getRadius().getAngledProjection(angle);
-        Position position = getPosition();
-        setPosition(new Position(position.x() - puckRadius.x() - handleRadius.x(), position.y() - puckRadius.x() - handleRadius.x()));
+        setPosition(new Position(position.x() + xOffset, position.y() + yOffset));
     }
 
     public void ricochet(Handle handle) {
