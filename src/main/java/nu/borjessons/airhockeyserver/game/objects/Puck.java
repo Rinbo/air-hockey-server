@@ -42,10 +42,14 @@ public final class Puck extends Circle {
 
     public void move() {
         Position position = super.getPosition();
+        Radius radius = getRadius();
 
-        double x = Math.max(0, position.x() + speed.x() - GameConstants.PUCK_RADIUS.x());
-        double y = Math.max(0, position.y() + speed.y() - GameConstants.PUCK_RADIUS.y());
-        setPosition(new Position(Math.min(1, x + GameConstants.PUCK_RADIUS.x()), Math.min(1, y + GameConstants.PUCK_RADIUS.y())));
+        // TODO add some event if we see that we actually reached the limit? Right now handle can force the puck to become stale
+        // We could trigger a small speed change to the puck if it gets stuck at them limit?
+        // Maybe a special event at the very end. If puck y speed is zero and we are at the margin, give it a little push?
+        double x = Math.max(0 + radius.x(), position.x() + speed.x());
+        double y = Math.max(0 + radius.y(), position.y() + speed.y());
+        setPosition(new Position(Math.min(1 - radius.x(), x), Math.min(1 - radius.y(), y)));
     }
 
 
