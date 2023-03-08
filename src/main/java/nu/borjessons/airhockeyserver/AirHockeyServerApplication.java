@@ -7,5 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class AirHockeyServerApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(AirHockeyServerApplication.class, args);
+		SpringApplication.run(AirHockeyServerApplication.class, args);
+		SpringApplication.run(AirHockeyServerApplication.class, args);
 	}
 }
