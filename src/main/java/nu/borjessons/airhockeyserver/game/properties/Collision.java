@@ -1,11 +1,13 @@
 package nu.borjessons.airhockeyserver.game.properties;
 
 public enum Collision {
-  LEFT_WALL,
-  RIGHT_WALL,
-  TOP_WALL,
   BOTTOM_WALL,
+  LEFT_WALL,
+  NO_COLLISION,
+  P1_GOAL,
   P1_HANDLE,
+  P2_GOAL,
   P2_HANDLE,
-  NO_COLLISION
+  RIGHT_WALL,
+  TOP_WALL
 }

@@ -2,12 +2,11 @@ package nu.borjessons.airhockeyserver.game;
 
 import java.util.function.Function;
 
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-
 import nu.borjessons.airhockeyserver.game.objects.Handle;
 import nu.borjessons.airhockeyserver.game.properties.GameConstants;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.GameId;
+import nu.borjessons.airhockeyserver.repository.GameStoreController;
 
 public class GameEngine {
   private final BoardState boardState;
@@ -26,8 +25,8 @@ public class GameEngine {
     return new Position(1 - position.x(), 1 - position.y());
   }
 
-  public void startGame(GameId gameId, SimpMessagingTemplate messagingTemplate) {
-    Thread thread = new Thread(new GameRunnable(boardState, gameId, messagingTemplate));
+  public void startGame(GameId gameId, GameStoreController gameStoreController) {
+    Thread thread = new Thread(new GameRunnable(boardState, gameId, gameStoreController));
     thread.start();
     threadHolder.setThread(thread);
   }

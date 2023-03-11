@@ -8,7 +8,6 @@ import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import nu.borjessons.airhockeyserver.game.objects.Handle;
 import nu.borjessons.airhockeyserver.game.objects.Puck;
@@ -17,22 +16,24 @@ import nu.borjessons.airhockeyserver.game.properties.GameConstants;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.game.properties.Speed;
 import nu.borjessons.airhockeyserver.game.properties.Vector;
+import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.GameId;
+import nu.borjessons.airhockeyserver.repository.GameStoreController;
 
 class GameRunnable implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
 
   private final BoardState boardState;
   private final GameId gameId;
-  private final SimpMessagingTemplate messagingTemplate;
+  private final GameStoreController gameStoreController;
 
-  public GameRunnable(BoardState boardState, GameId gameId, SimpMessagingTemplate messagingTemplate) {
+  public GameRunnable(BoardState boardState, GameId gameId, GameStoreController gameStoreController) {
     Objects.requireNonNull(boardState, "boardState must not be null");
     Objects.requireNonNull(gameId, "gameId must not be null");
-    Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
+    Objects.requireNonNull(gameStoreController, "gameStoreController must not be null");
 
     this.boardState = boardState;
-    this.messagingTemplate = messagingTemplate;
+    this.gameStoreController = gameStoreController;
     this.gameId = gameId;
   }
 
@@ -96,13 +97,15 @@ class GameRunnable implements Runnable {
     Position puckPosition = boardState.puck().getPosition();
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
-    messagingTemplate.convertAndSend(playerOneTopic, createBroadcastState(playerTwoHandlePosition, puckPosition));
-    messagingTemplate.convertAndSend(playerTwoTopic, createBroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition)));
+    gameStoreController.broadcast(playerOneTopic, playerTwoTopic, createBroadcastState(playerTwoHandlePosition, puckPosition),
+        createBroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition)));
   }
 
   private Collision detectCollision() {
     Position puckPosition = boardState.puck().getPosition();
 
+    if (puckPosition.y() > 1) return Collision.P1_GOAL;
+    if (puckPosition.y() < 0) return Collision.P2_GOAL;
     if (isTopWallHit(puckPosition)) return Collision.TOP_WALL;
     if (isBottomWallHit(puckPosition)) return Collision.BOTTOM_WALL;
     if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0) return Collision.LEFT_WALL;
@@ -120,6 +123,8 @@ class GameRunnable implements Runnable {
       case BOTTOM_WALL -> onBottomWallCollision();
       case P1_HANDLE -> onPuckHandleCollision(BoardState::playerOne);
       case P2_HANDLE -> onPuckHandleCollision(BoardState::playerTwo);
+      case P1_GOAL -> onPlayerScores(Agency.PLAYER_2);
+      case P2_GOAL -> onPlayerScores(Agency.PLAYER_1);
       case NO_COLLISION -> logger.debug("no collision");
       default -> logger.warn("unknown collision type: {}", collision);
     }
@@ -129,6 +134,10 @@ class GameRunnable implements Runnable {
     Puck puck = boardState.puck();
     puck.setPosition(new Position(puck.getPosition().x(), 1 - puck.getRadius().y()));
     updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
+  }
+
+  private void onPlayerScores(Agency player) {
+
   }
 
   private void onPuckHandleCollision(Function<BoardState, Handle> handleSelector) {
