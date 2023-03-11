@@ -78,7 +78,7 @@ public class GameStore {
 
   public void startGame(SimpMessagingTemplate messagingTemplate) {
     transition(GameState.GAME_RUNNING);
-    gameEngine.startGame(gameId, new GameStoreController(this::transition, messagingTemplate, this::terminate));
+    gameEngine.startGame(gameId, new GameStoreController(gameId, this::transition, messagingTemplate, this::terminate));
   }
 
   public void terminate() {

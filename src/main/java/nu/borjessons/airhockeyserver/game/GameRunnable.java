@@ -74,15 +74,12 @@ class GameRunnable implements Runnable {
   public void run() {
     logger.info("Starting game loop: {}", gameId);
 
-    String playerOneTopic = String.format("/topic/game/%s/board-state/player-1", gameId);
-    String playerTwoTopic = String.format("/topic/game/%s/board-state/player-2", gameId);
-
     while (!Thread.currentThread().isInterrupted()) {
       try {
         Collision collision = detectCollision();
         handleCollision(collision);
         tickBoardState();
-        broadcast(playerOneTopic, playerTwoTopic);
+        broadcast();
         TimeUnit.MILLISECONDS.sleep(1000 / GameConstants.FRAME_RATE);
       } catch (InterruptedException e) {
         logger.info("Interrupt called on gameThread: {}", gameId);
@@ -93,11 +90,12 @@ class GameRunnable implements Runnable {
     logger.info("exiting game loop: {}", gameId);
   }
 
-  private void broadcast(String playerOneTopic, String playerTwoTopic) {
+  private void broadcast() {
     Position puckPosition = boardState.puck().getPosition();
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
-    gameStoreController.broadcast(playerOneTopic, playerTwoTopic, createBroadcastState(playerTwoHandlePosition, puckPosition),
+    gameStoreController.broadcast(
+        createBroadcastState(playerTwoHandlePosition, puckPosition),
         createBroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition)));
   }
 
