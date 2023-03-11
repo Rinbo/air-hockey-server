@@ -24,20 +24,6 @@ import nu.borjessons.airhockeyserver.service.api.GameService;
 import nu.borjessons.airhockeyserver.utils.HeaderUtils;
 import nu.borjessons.airhockeyserver.utils.TopicUtils;
 
-/**
- * Need endpoint to players to update paddle state
- * Need sendMethod that sends opponent handle position, and puck position to each player with correct mapping
- * Need a GameEngine that has a clock, and which calculates collision and puck speed/movements
- * Game engine needs the simpleMessagingTemplate to send the state on each tick to both players (individually customized)
- * Player1 is always at bottom of board, and player2 is always on top when running calculations
- * But when receiving P2 paddle it will also be at bottom, so its position needs to be reversed on entry
- * After calculations are made on each tick, game engine will transform the positions for Player2, so that it looks like he
- * is on bottom when receiving state to draw on canvas.
- * Server is only aware of aspect ratio, so frontend handle position updates will have to be sent as a percentage of width and
- * height. Conversion to percentage in frontend in other words.
- * Likewise, when server sends new state it will also be in percentages, and each frontend will have to calculate absolute
- * positions.
- */
 @Controller
 public class GameController {
   private static final Logger logger = LoggerFactory.getLogger(GameController.class);

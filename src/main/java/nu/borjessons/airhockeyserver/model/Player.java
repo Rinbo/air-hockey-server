@@ -8,6 +8,7 @@ import nu.borjessons.airhockeyserver.repository.GameStore;
 public class Player {
   private final Agency agency;
   private boolean ready;
+  private short score;
   private final Username username;
 
   public Player(Agency agency, Username username) {
@@ -16,20 +17,8 @@ public class Player {
 
     this.agency = agency;
     this.username = username;
+    this.score = 0;
     this.ready = false;
-  }
-
-  public Agency getAgency() {
-    return agency;
-  }
-
-  public Username getUsername() {
-    return username;
-  }
-
-  @Override
-  public int hashCode() {
-    return username.hashCode();
   }
 
   /**
@@ -46,13 +35,21 @@ public class Player {
     return username.equals(other.username);
   }
 
+  public Agency getAgency() {
+    return agency;
+  }
+
+  public short getScore() {
+    return score;
+  }
+
+  public Username getUsername() {
+    return username;
+  }
+
   @Override
-  public String toString() {
-    return new StringJoiner(", ", Player.class.getSimpleName() + "[", "]")
-        .add("agency=" + agency)
-        .add("ready=" + ready)
-        .add("username=" + username)
-        .toString();
+  public int hashCode() {
+    return username.hashCode();
   }
 
   public boolean isPlayer(Username username) {
@@ -61,6 +58,19 @@ public class Player {
 
   public boolean isReady() {
     return ready;
+  }
+
+  public void score() {
+    score++;
+  }
+
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", Player.class.getSimpleName() + "[", "]")
+        .add("agency=" + agency)
+        .add("ready=" + ready)
+        .add("username=" + username)
+        .toString();
   }
 
   public void toggleReady() {

@@ -1,6 +1,9 @@
 package nu.borjessons.airhockeyserver.game;
 
+import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -102,8 +105,9 @@ class GameRunnable implements Runnable {
   private Collision detectCollision() {
     Position puckPosition = boardState.puck().getPosition();
 
-    if (puckPosition.y() > 1) return Collision.P1_GOAL;
-    if (puckPosition.y() < 0) return Collision.P2_GOAL;
+    if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION)) return Collision.NO_COLLISION;
+    if (puckPosition.y() - GameConstants.PUCK_RADIUS.y() > 1) return Collision.P1_GOAL;
+    if (puckPosition.y() + GameConstants.PUCK_RADIUS.y() < 0) return Collision.P2_GOAL;
     if (isTopWallHit(puckPosition)) return Collision.TOP_WALL;
     if (isBottomWallHit(puckPosition)) return Collision.BOTTOM_WALL;
     if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0) return Collision.LEFT_WALL;
@@ -112,6 +116,13 @@ class GameRunnable implements Runnable {
     if (puckHandleCollision(puckPosition, boardState::playerTwo)) return Collision.P2_HANDLE;
 
     return Collision.NO_COLLISION;
+  }
+
+  private void executeWithDelay(Runnable runnable, Duration duration) {
+    logger.info("How many times do I run?");
+    try (ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor()) {
+      scheduledExecutorService.schedule(runnable, duration.getSeconds(), TimeUnit.SECONDS);
+    }
   }
 
   private void handleCollision(Collision collision) {
@@ -142,7 +153,12 @@ class GameRunnable implements Runnable {
   }
 
   private void onPlayerScores(Agency player) {
-
+    gameStoreController.updatePlayerScore(player);
+    Puck puck = boardState.puck();
+    puck.setPosition(GameConstants.OFF_BOARD_POSITION);
+    puck.setSpeed(GameConstants.ZERO_SPEED);
+    Position position = player == Agency.PLAYER_1 ? GameConstants.PUCK_START_P2 : GameConstants.PUCK_START_P1;
+    executeWithDelay(() -> puck.setPosition(position), Duration.ofSeconds(1));
   }
 
   private void onPuckHandleCollision(Function<BoardState, Handle> handleSelector) {
