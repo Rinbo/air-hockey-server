@@ -116,7 +116,8 @@ class GameRunnable implements Runnable {
 
   private void handleCollision(Collision collision) {
     switch (collision) {
-      case LEFT_WALL, RIGHT_WALL -> updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
+      case LEFT_WALL -> onLeftWallCollision();
+      case RIGHT_WALL -> onRightWallCollision();
       case TOP_WALL -> onTopWallCollision();
       case BOTTOM_WALL -> onBottomWallCollision();
       case P1_HANDLE -> onPuckHandleCollision(BoardState::playerOne);
@@ -132,6 +133,12 @@ class GameRunnable implements Runnable {
     Puck puck = boardState.puck();
     puck.setPosition(new Position(puck.getPosition().x(), 1 - puck.getRadius().y()));
     updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
+  }
+
+  private void onLeftWallCollision() {
+    Puck puck = boardState.puck();
+    updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
+    puck.setPosition(new Position(0 + puck.getRadius().x(), puck.getPosition().y()));
   }
 
   private void onPlayerScores(Agency player) {
@@ -152,6 +159,12 @@ class GameRunnable implements Runnable {
       puck.setSpeed(handleSpeed);
       puck.resetFriction();
     }
+  }
+
+  private void onRightWallCollision() {
+    Puck puck = boardState.puck();
+    updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
+    puck.setPosition(new Position(1 - puck.getRadius().x(), puck.getPosition().y()));
   }
 
   private void onTopWallCollision() {
