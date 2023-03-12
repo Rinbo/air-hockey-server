@@ -1,5 +1,6 @@
 package nu.borjessons.airhockeyserver.game;
 
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 import nu.borjessons.airhockeyserver.game.objects.Handle;
@@ -26,7 +27,7 @@ public class GameEngine {
   }
 
   public void startGame(GameId gameId, GameStoreController gameStoreController) {
-    Thread thread = new Thread(new GameRunnable(boardState, gameId, gameStoreController));
+    Thread thread = new Thread(new GameRunnable(boardState, gameId, gameStoreController, Executors.newSingleThreadScheduledExecutor()));
     thread.start();
     threadHolder.setThread(thread);
   }

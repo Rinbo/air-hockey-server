@@ -29,8 +29,9 @@ class GameRunnable implements Runnable {
   private final BoardState boardState;
   private final GameId gameId;
   private final GameStoreController gameStoreController;
+  private final ScheduledExecutorService scheduledExecutorService;
 
-  public GameRunnable(BoardState boardState, GameId gameId, GameStoreController gameStoreController) {
+  public GameRunnable(BoardState boardState, GameId gameId, GameStoreController gameStoreController, ScheduledExecutorService scheduledExecutorService) {
     Objects.requireNonNull(boardState, "boardState must not be null");
     Objects.requireNonNull(gameId, "gameId must not be null");
     Objects.requireNonNull(gameStoreController, "gameStoreController must not be null");
@@ -38,6 +39,7 @@ class GameRunnable implements Runnable {
     this.boardState = boardState;
     this.gameStoreController = gameStoreController;
     this.gameId = gameId;
+    this.scheduledExecutorService = scheduledExecutorService;
   }
 
   /**
@@ -118,8 +120,8 @@ class GameRunnable implements Runnable {
     return Collision.NO_COLLISION;
   }
 
+  // TODO try with resources will close the executorService causing it to block the main thread.
   private void executeWithDelay(Runnable runnable, Duration duration) {
-    logger.info("How many times do I run?");
     try (ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor()) {
       scheduledExecutorService.schedule(runnable, duration.getSeconds(), TimeUnit.SECONDS);
     }
@@ -158,7 +160,7 @@ class GameRunnable implements Runnable {
     puck.setPosition(GameConstants.OFF_BOARD_POSITION);
     puck.setSpeed(GameConstants.ZERO_SPEED);
     Position position = player == Agency.PLAYER_1 ? GameConstants.PUCK_START_P2 : GameConstants.PUCK_START_P1;
-    executeWithDelay(() -> puck.setPosition(position), Duration.ofSeconds(1));
+    scheduledExecutorService.schedule(() -> puck.setPosition(position), GameConstants.PUCK_RESET_DURATION.getSeconds(), TimeUnit.SECONDS);
   }
 
   private void onPuckHandleCollision(Function<BoardState, Handle> handleSelector) {

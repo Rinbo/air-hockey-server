@@ -62,7 +62,7 @@ public final class Puck extends Circle {
     Position position = super.getPosition();
     Radius radius = getRadius();
 
-    movePuck(position, radius);
+    movePuck(position);
     handleFriction();
     handleStalePuck(position, radius);
   }
@@ -94,7 +94,7 @@ public final class Puck extends Circle {
     if (speed.y() == 0) setSpeed(new Speed(speed.x(), getRecoverySpeed(position.y(), radius.y())));
   }
 
-  private void movePuck(Position position, Radius radius) {
+  private void movePuck(Position position) {
     setPosition(new Position(position.x() + speed.x(), position.y() + speed.y()));
   }
 }
