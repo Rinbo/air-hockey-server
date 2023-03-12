@@ -57,8 +57,8 @@ class GameRunnable implements Runnable {
 
   private static boolean isBottomWallHit(Position puckPosition) {
     return puckPosition.y() + GameConstants.PUCK_RADIUS.y() >= 1 &&
-        (puckPosition.x() - GameConstants.PUCK_RADIUS.x() < 0.5 - GameConstants.GOAL_WIDTH ||
-            puckPosition.x() - GameConstants.PUCK_RADIUS.x() > 0.5 + GameConstants.GOAL_WIDTH);
+        (puckPosition.x() < 0.5 - GameConstants.GOAL_WIDTH ||
+            puckPosition.x() > 0.5 + GameConstants.GOAL_WIDTH);
   }
 
   private static boolean isSpeedZero(Speed speed) {
@@ -67,8 +67,8 @@ class GameRunnable implements Runnable {
 
   private static boolean isTopWallHit(Position puckPosition) {
     return puckPosition.y() - GameConstants.PUCK_RADIUS.y() <= 0 &&
-        (puckPosition.x() - GameConstants.PUCK_RADIUS.x() < 0.5 - GameConstants.GOAL_WIDTH ||
-            puckPosition.x() - GameConstants.PUCK_RADIUS.x() > 0.5 + GameConstants.GOAL_WIDTH);
+        (puckPosition.x() < 0.5 - GameConstants.GOAL_WIDTH ||
+            puckPosition.x() > 0.5 + GameConstants.GOAL_WIDTH);
   }
 
   private static boolean puckHandleCollision(Position puckPosition, Supplier<Handle> supplier) {
