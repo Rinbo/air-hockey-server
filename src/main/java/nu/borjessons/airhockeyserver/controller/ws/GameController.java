@@ -15,6 +15,7 @@ import nu.borjessons.airhockeyserver.controller.security.GameValidator;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.AuthRecord;
 import nu.borjessons.airhockeyserver.model.GameId;
+import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.UserMessage;
@@ -40,10 +41,6 @@ public class GameController {
     this.messagingTemplate = messagingTemplate;
   }
 
-  private static UserMessage createBotMessage(String message) {
-    return new UserMessage(TopicUtils.GAME_BOT, message);
-  }
-
   private static String format(String message, Object... args) {
     return String.format(Locale.ROOT, message, args);
   }
@@ -67,7 +64,7 @@ public class GameController {
 
     if (gameService.addUserToGame(gameId, username)) {
       logger.info("{} added to gameStore", username);
-      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), createBotMessage(format("%s joined", username)));
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(format("%s joined", username)));
     }
 
     gameService
@@ -97,7 +94,7 @@ public class GameController {
 
     gameService.toggleReady(gameId, username);
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
-    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), createBotMessage(createReadinessMessage(gameId, username)));
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), TopicUtils.createBotMessage(createReadinessMessage(gameId, username)));
     countdownService.handleBothPlayersReady(gameId, username);
   }
 
@@ -122,14 +119,19 @@ public class GameController {
     switch (player.getAgency()) {
       case PLAYER_1 -> {
         messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.CREATOR_DISCONNECT);
+        // TODO send personal message to player 2 that player 1 left
         gameService.deleteGame(gameId);
       }
       case PLAYER_2 -> {
         Username username = player.getUsername();
-        gameService.removeUser(gameId, username);
+
         messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.LOBBY);
         messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
-        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), createBotMessage(format("%s left", username)));
+        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(format("%s left", username)));
+
+        gameService.removeUser(gameId, username);
+        gameService.getPlayers(gameId).forEach(Player::toggleReady);
+        gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.transition(GameState.LOBBY));
       }
       default -> logger.error("player agency is not known {}", player.getAgency());
     }

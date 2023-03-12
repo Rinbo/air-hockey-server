@@ -138,7 +138,10 @@ class GameRunnable implements Runnable {
   }
 
   private void isGameComplete(boolean isComplete) {
-    if (isComplete) gameStoreController.terminateGame();
+    if (isComplete) {
+      gameStoreController.gameComplete();
+      boardState.resetObjects();
+    }
   }
 
   private void onBottomWallCollision() {

@@ -60,6 +60,10 @@ public class Player {
     return ready;
   }
 
+  public void resetScore() {
+    score = 0;
+  }
+
   public void score() {
     score++;
   }
