@@ -127,7 +127,7 @@ public class GameController {
       case PLAYER_2 -> {
         Username username = player.getUsername();
         gameService.removeUser(gameId, username);
-        // TODO Transition to lobby state
+        messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.LOBBY);
         messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
         messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), createBotMessage(format("%s left", username)));
       }

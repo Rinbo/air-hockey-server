@@ -1,9 +1,8 @@
 package nu.borjessons.airhockeyserver.game;
 
-import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -51,8 +50,8 @@ class GameRunnable implements Runnable {
     return Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff / GameConstants.BOARD_ASPECT_RATIO, 2));
   }
 
-  private static BroadcastState createBroadcastState(Position opponentPosition, Position puckPosition) {
-    return new BroadcastState(opponentPosition, puckPosition);
+  private static BroadcastState createBroadcastState(Position opponentPosition, Position puckPosition, long remainingSeconds) {
+    return new BroadcastState(opponentPosition, puckPosition, remainingSeconds);
   }
 
   private static boolean isBottomWallHit(Position puckPosition) {
@@ -79,12 +78,15 @@ class GameRunnable implements Runnable {
   public void run() {
     logger.info("Starting game loop: {}", gameId);
 
+    ScheduledFuture<String> schedule = scheduledExecutorService.schedule(() -> "complete", GameConstants.GAME_DURATION.getSeconds(), TimeUnit.SECONDS);
+
     while (!Thread.currentThread().isInterrupted()) {
       try {
+        isGameComplete(schedule.isDone());
         Collision collision = detectCollision();
         handleCollision(collision);
         tickBoardState();
-        broadcast();
+        broadcast(schedule.getDelay(TimeUnit.SECONDS));
         TimeUnit.MILLISECONDS.sleep(1000 / GameConstants.FRAME_RATE);
       } catch (InterruptedException e) {
         logger.info("Interrupt called on gameThread: {}", gameId);
@@ -95,13 +97,13 @@ class GameRunnable implements Runnable {
     logger.info("exiting game loop: {}", gameId);
   }
 
-  private void broadcast() {
+  private void broadcast(long remainingSeconds) {
     Position puckPosition = boardState.puck().getPosition();
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
     gameStoreController.broadcast(
-        createBroadcastState(playerTwoHandlePosition, puckPosition),
-        createBroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition)));
+        createBroadcastState(playerTwoHandlePosition, puckPosition, remainingSeconds),
+        createBroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition), remainingSeconds));
   }
 
   private Collision detectCollision() {
@@ -120,13 +122,6 @@ class GameRunnable implements Runnable {
     return Collision.NO_COLLISION;
   }
 
-  // TODO try with resources will close the executorService causing it to block the main thread.
-  private void executeWithDelay(Runnable runnable, Duration duration) {
-    try (ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor()) {
-      scheduledExecutorService.schedule(runnable, duration.getSeconds(), TimeUnit.SECONDS);
-    }
-  }
-
   private void handleCollision(Collision collision) {
     switch (collision) {
       case LEFT_WALL -> onLeftWallCollision();
@@ -140,6 +135,10 @@ class GameRunnable implements Runnable {
       case NO_COLLISION -> logger.debug("no collision");
       default -> logger.warn("unknown collision type: {}", collision);
     }
+  }
+
+  private void isGameComplete(boolean isComplete) {
+    if (isComplete) gameStoreController.terminateGame();
   }
 
   private void onBottomWallCollision() {
