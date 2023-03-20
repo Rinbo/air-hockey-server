@@ -1,5 +1,6 @@
 package nu.borjessons.airhockeyserver.config;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,6 +18,7 @@ import nu.borjessons.airhockeyserver.controller.serializer.UsernameSerializer;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.repository.GameStore;
+import nu.borjessons.airhockeyserver.repository.UserStore;
 
 @Configuration
 public class AppConfig {
@@ -38,5 +40,10 @@ public class AppConfig {
 
     objectMapper.registerModules(new JavaTimeModule(), simpleModule);
     return objectMapper;
+  }
+
+  @Bean
+  UserStore createUserstore() {
+    return new UserStore(new HashSet<>());
   }
 }

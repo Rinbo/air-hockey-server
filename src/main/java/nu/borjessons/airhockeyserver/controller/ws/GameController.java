@@ -20,6 +20,7 @@ import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.UserMessage;
 import nu.borjessons.airhockeyserver.model.Username;
+import nu.borjessons.airhockeyserver.repository.GameStore;
 import nu.borjessons.airhockeyserver.service.api.CountdownService;
 import nu.borjessons.airhockeyserver.service.api.GameService;
 import nu.borjessons.airhockeyserver.utils.HeaderUtils;
@@ -118,22 +119,31 @@ public class GameController {
   private void handleUserDisconnect(GameId gameId, Player player) {
     switch (player.getAgency()) {
       case PLAYER_1 -> {
-        messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.CREATOR_DISCONNECT);
-        // TODO send personal message to player 2 that player 1 left
+        messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.PLAYER_1_DISCONNECT);
         gameService.deleteGame(gameId);
       }
       case PLAYER_2 -> {
         Username username = player.getUsername();
 
         messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.LOBBY);
-        messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
         messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(format("%s left", username)));
 
         gameService.removeUser(gameId, username);
-        gameService.getPlayers(gameId).forEach(Player::toggleReady);
-        gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.transition(GameState.LOBBY));
+        gameService.getGameStore(gameId).ifPresent(this::transitionIfRunning);
+        messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
       }
       default -> logger.error("player agency is not known {}", player.getAgency());
+    }
+  }
+
+  private void transitionIfRunning(GameStore gameStore) {
+    GameState gameState = gameStore.getGameState();
+    if (gameState == GameState.GAME_RUNNING) {
+      gameStore.transition(GameState.LOBBY);
+      GameId gameId = gameStore.getGameId();
+      gameStore.getPlayers().forEach(Player::toggleReady);
+      gameStore.terminate();
+      messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.PLAYER_2_DISCONNECT);
     }
   }
 }

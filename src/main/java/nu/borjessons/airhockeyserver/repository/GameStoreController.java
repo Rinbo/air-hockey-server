@@ -53,7 +53,7 @@ public class GameStoreController {
     GameId gameId = gameStore.getGameId();
     Collection<Player> players = gameStore.getPlayers();
 
-    messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.LOBBY);
+    messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.SCORE_SCREEN);
     messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(printResult(players)));
 
     players.forEach(Player::toggleReady);

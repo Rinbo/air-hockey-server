@@ -1,6 +1,9 @@
 package nu.borjessons.airhockeyserver.model;
 
 public enum Notification {
-  CREATOR_DISCONNECT,
-  LOBBY
+  PLAYER_1_DISCONNECT,
+  PLAYER_2_DISCONNECT,
+  GAME_RUNNING,
+  LOBBY,
+  SCORE_SCREEN
 }

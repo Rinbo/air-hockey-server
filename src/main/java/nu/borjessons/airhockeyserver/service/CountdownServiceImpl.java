@@ -11,7 +11,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import nu.borjessons.airhockeyserver.model.GameId;
-import nu.borjessons.airhockeyserver.model.GameState;
+import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.UserMessage;
 import nu.borjessons.airhockeyserver.model.Username;
@@ -70,7 +70,7 @@ public class CountdownServiceImpl implements CountdownService {
         messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--));
         if (count < 0) {
           gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.startGame(messagingTemplate));
-          messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), GameState.GAME_RUNNING);
+          messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.GAME_RUNNING);
           timer.cancel();
           countdownMap.remove(gameId);
         }
