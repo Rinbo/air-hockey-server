@@ -24,6 +24,10 @@ public class UserStore {
     return users.contains(username);
   }
 
+  public Set<Username> getAll() {
+    return users;
+  }
+
   public void removeUser(Username username) {
     Objects.requireNonNull(username, "username must not be null");
 
