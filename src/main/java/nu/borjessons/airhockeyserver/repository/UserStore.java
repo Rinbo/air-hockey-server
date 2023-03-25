@@ -20,6 +20,10 @@ public class UserStore {
     return users.add(username);
   }
 
+  public boolean contains(Username username) {
+    return users.contains(username);
+  }
+
   public void removeUser(Username username) {
     Objects.requireNonNull(username, "username must not be null");
 
