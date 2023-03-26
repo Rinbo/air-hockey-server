@@ -1,6 +1,7 @@
 package nu.borjessons.airhockeyserver.controller.rest;
 
 import java.util.Objects;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.repository.UserStore;
@@ -48,6 +50,12 @@ public class UserController {
     userStore.removeUser(new Username(username));
     messagingTemplate.convertAndSend("/topic/users", userStore.getAll());
     logger.info("user exited: {}", username);
+  }
+
+  @ResponseBody
+  @GetMapping
+  public Set<Username> getUsers() {
+    return userStore.getAll();
   }
 
   @GetMapping("/{name}/validate")
