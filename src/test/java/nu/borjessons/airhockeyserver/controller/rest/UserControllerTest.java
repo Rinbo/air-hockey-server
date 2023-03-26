@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import nu.borjessons.airhockeyserver.controller.UserController;
 import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.repository.UserStore;
 

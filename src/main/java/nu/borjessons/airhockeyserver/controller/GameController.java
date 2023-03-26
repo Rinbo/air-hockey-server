@@ -1,4 +1,4 @@
-package nu.borjessons.airhockeyserver.controller.ws;
+package nu.borjessons.airhockeyserver.controller;
 
 import java.util.Locale;
 

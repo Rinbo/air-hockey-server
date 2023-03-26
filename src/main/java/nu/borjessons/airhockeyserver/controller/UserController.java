@@ -1,4 +1,4 @@
-package nu.borjessons.airhockeyserver.controller.rest;
+package nu.borjessons.airhockeyserver.controller;
 
 import java.util.Objects;
 import java.util.Set;
