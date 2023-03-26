@@ -56,6 +56,10 @@ public class GameStore {
     };
   }
 
+  public Optional<Username> getGameCreator() {
+    return players.stream().filter(player -> player.getAgency() == Agency.PLAYER_1).map(Player::getUsername).findFirst();
+  }
+
   public GameId getGameId() {
     return gameId;
   }
@@ -70,6 +74,10 @@ public class GameStore {
 
   public synchronized Collection<Player> getPlayers() {
     return players.stream().sorted(Comparator.comparing(Player::getAgency)).toList();
+  }
+
+  public boolean isJoinable() {
+    return players.size() != 2;
   }
 
   public synchronized void removePlayer(Player player) {

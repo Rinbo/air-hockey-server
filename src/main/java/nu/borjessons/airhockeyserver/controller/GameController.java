@@ -1,5 +1,6 @@
 package nu.borjessons.airhockeyserver.controller;
 
+import java.util.Collection;
 import java.util.Locale;
 
 import org.slf4j.Logger;
@@ -10,10 +11,13 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import nu.borjessons.airhockeyserver.controller.security.GameValidator;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.AuthRecord;
+import nu.borjessons.airhockeyserver.model.Game;
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.model.Notification;
@@ -44,6 +48,12 @@ public class GameController {
 
   private static String format(String message, Object... args) {
     return String.format(Locale.ROOT, message, args);
+  }
+
+  @GetMapping("/games")
+  @ResponseBody
+  public Collection<Game> getGames() {
+    return gameService.getGameStores().stream().map(Game::new).toList();
   }
 
   @MessageMapping("/game/{id}/chat")

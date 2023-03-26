@@ -15,6 +15,8 @@ public interface GameService {
 
   Optional<GameStore> getGameStore(GameId gameId);
 
+  Collection<GameStore> getGameStores();
+
   Optional<Player> getPlayer(GameId gameId, Username username);
 
   Collection<Player> getPlayers(GameId gameId);
