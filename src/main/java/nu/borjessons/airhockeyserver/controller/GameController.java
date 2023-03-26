@@ -1,6 +1,7 @@
 package nu.borjessons.airhockeyserver.controller;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ public class GameController {
   @GetMapping("/games")
   @ResponseBody
   public Collection<Game> getGames() {
-    return gameService.getGameStores().stream().map(Game::new).toList();
+    return getGameList();
   }
 
   @MessageMapping("/game/{id}/chat")
@@ -76,6 +77,7 @@ public class GameController {
     if (gameService.addUserToGame(gameId, username)) {
       logger.info("{} added to gameStore", username);
       messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(format("%s joined", username)));
+      messagingTemplate.convertAndSend(TopicUtils.GAMES_TOPIC, getGameList());
     }
 
     gameService
@@ -95,6 +97,7 @@ public class GameController {
 
     countdownService.cancelTimer(new GameId(id));
     gameService.getPlayer(gameId, username).ifPresent(player -> handleUserDisconnect(gameId, player));
+    messagingTemplate.convertAndSend(TopicUtils.GAMES_TOPIC, getGameList());
   }
 
   @MessageMapping("/game/{id}/toggle-ready")
@@ -124,6 +127,10 @@ public class GameController {
     return gameService.getPlayer(gameId, username)
         .map(player -> player.isReady() ? format("%s is ready", username) : format("%s cancelled readiness", username))
         .orElseThrow();
+  }
+
+  private List<Game> getGameList() {
+    return gameService.getGameStores().stream().map(Game::new).toList();
   }
 
   private void handleUserDisconnect(GameId gameId, Player player) {
