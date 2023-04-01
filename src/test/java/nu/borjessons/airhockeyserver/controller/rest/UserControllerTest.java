@@ -12,7 +12,6 @@ import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.repository.UserStore;
 
 class UserControllerTest {
-
   @Test
   void validateName() {
     SimpMessagingTemplate simpMessagingTemplate = Mockito.mock(SimpMessagingTemplate.class);
