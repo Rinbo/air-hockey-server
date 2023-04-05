@@ -38,7 +38,13 @@ public final class Puck extends Circle {
     return speed.x() * vector.x() + speed.y() * vector.y();
   }
 
-  private static double getRecoverySpeed(double yCoordinate, double yRadius) {
+  private static double getXRecoverySpeed(double xCoordinate, double xRadius) {
+    if (xCoordinate == 0 + xRadius) return 1;
+    if (xCoordinate == 1 - xRadius) return -1;
+    return 0;
+  }
+
+  private static double getYRecoverySpeed(double yCoordinate, double yRadius) {
     if (yCoordinate == 0 + yRadius) return 1;
     if (yCoordinate == 1 - yRadius) return -1;
     return 0;
@@ -77,7 +83,7 @@ public final class Puck extends Circle {
   }
 
   public void setSpeed(Speed speed) {
-    this.speed = speed;
+    this.speed = new Speed(Math.min(GameConstants.MAX_SPEED_CONSTITUENT, speed.x()), Math.min(GameConstants.MAX_SPEED_CONSTITUENT, speed.y()));
   }
 
   private double getFrictionCoefficient() {
@@ -91,7 +97,8 @@ public final class Puck extends Circle {
   }
 
   private void handleStalePuck(Position position, Radius radius) {
-    if (speed.y() == 0) setSpeed(new Speed(speed.x(), getRecoverySpeed(position.y(), radius.y())));
+    if (speed.y() == 0) setSpeed(new Speed(speed.x(), getYRecoverySpeed(position.y(), radius.y())));
+    if (speed.x() == 0) setSpeed(new Speed(getXRecoverySpeed(position.x(), radius.x()), speed.y()));
   }
 
   private void movePuck(Position position) {

@@ -150,7 +150,7 @@ class GameRunnable implements Runnable {
     updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
   }
 
-  // TODO this and the above can be added to puck mechanics 
+  // TODO this and the above can be added to puck mechanics
   private void onLeftWallCollision() {
     Puck puck = boardState.puck();
     updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
