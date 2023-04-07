@@ -20,23 +20,23 @@ import nu.borjessons.airhockeyserver.game.properties.Speed;
 import nu.borjessons.airhockeyserver.game.properties.Vector;
 import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.GameId;
-import nu.borjessons.airhockeyserver.repository.GameStoreController;
+import nu.borjessons.airhockeyserver.repository.GameStoreConnector;
 
 class GameRunnable implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
 
   private final BoardState boardState;
   private final GameId gameId;
-  private final GameStoreController gameStoreController;
+  private final GameStoreConnector gameStoreConnector;
   private final ScheduledExecutorService scheduledExecutorService;
 
-  public GameRunnable(BoardState boardState, GameId gameId, GameStoreController gameStoreController, ScheduledExecutorService scheduledExecutorService) {
+  public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector, ScheduledExecutorService scheduledExecutorService) {
     Objects.requireNonNull(boardState, "boardState must not be null");
     Objects.requireNonNull(gameId, "gameId must not be null");
-    Objects.requireNonNull(gameStoreController, "gameStoreController must not be null");
+    Objects.requireNonNull(gameStoreConnector, "gameStoreController must not be null");
 
     this.boardState = boardState;
-    this.gameStoreController = gameStoreController;
+    this.gameStoreConnector = gameStoreConnector;
     this.gameId = gameId;
     this.scheduledExecutorService = scheduledExecutorService;
   }
@@ -101,7 +101,7 @@ class GameRunnable implements Runnable {
     Position puckPosition = boardState.puck().getPosition();
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
-    gameStoreController.broadcast(
+    gameStoreConnector.broadcast(
         createBroadcastState(playerTwoHandlePosition, puckPosition, remainingSeconds),
         createBroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition), remainingSeconds));
   }
@@ -139,7 +139,7 @@ class GameRunnable implements Runnable {
 
   private void isGameComplete(boolean isComplete) {
     if (isComplete) {
-      gameStoreController.gameComplete();
+      gameStoreConnector.gameComplete();
       boardState.resetObjects();
     }
   }
@@ -158,7 +158,7 @@ class GameRunnable implements Runnable {
   }
 
   private void onPlayerScores(Agency player) {
-    gameStoreController.updatePlayerScore(player);
+    gameStoreConnector.updatePlayerScore(player);
     Puck puck = boardState.puck();
     puck.setPosition(GameConstants.OFF_BOARD_POSITION);
     puck.setSpeed(GameConstants.ZERO_SPEED);

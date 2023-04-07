@@ -21,6 +21,8 @@ public interface GameService {
 
   Collection<Player> getPlayers(GameId gameId);
 
+  void handleUserDisconnect(GameId gameId, Username username);
+
   void removeUser(GameId gameId, Username username);
 
   void toggleReady(GameId gameId, Username userName);

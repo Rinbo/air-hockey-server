@@ -1,6 +1,8 @@
 package nu.borjessons.airhockeyserver.repository;
 
+import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import nu.borjessons.airhockeyserver.model.Username;
@@ -26,6 +28,11 @@ public class UserStore {
 
   public Set<Username> getAll() {
     return users;
+  }
+
+  public void pong(Username username) {
+    Optional<Username> optional = users.stream().filter(username::equals).findFirst();
+    optional.ifPresent(user -> user.setInstant(Instant.now()));
   }
 
   public void removeUser(Username username) {

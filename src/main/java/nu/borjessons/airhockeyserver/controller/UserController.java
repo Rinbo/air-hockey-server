@@ -35,6 +35,12 @@ public class UserController {
     this.userStore = userStore;
   }
 
+  @MessageMapping("/users/pong")
+  public void ePong(@Payload String username) {
+    userStore.pong(new Username(username));
+  }
+
+  // TODO add user to session using SimpleHeaderAccessor here instead of in game controller
   @MessageMapping("/users/enter")
   public void enter(@Payload String username, SimpMessageHeaderAccessor header) {
     if (userStore.addUser(new Username(username))) {

@@ -7,7 +7,7 @@ import nu.borjessons.airhockeyserver.game.objects.Handle;
 import nu.borjessons.airhockeyserver.game.properties.GameConstants;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.GameId;
-import nu.borjessons.airhockeyserver.repository.GameStoreController;
+import nu.borjessons.airhockeyserver.repository.GameStoreConnector;
 
 public class GameEngine {
   private final BoardState boardState;
@@ -26,8 +26,8 @@ public class GameEngine {
     return new Position(1 - position.x(), 1 - position.y());
   }
 
-  public void startGame(GameId gameId, GameStoreController gameStoreController) {
-    Thread thread = new Thread(new GameRunnable(boardState, gameId, gameStoreController, Executors.newSingleThreadScheduledExecutor()));
+  public void startGame(GameId gameId, GameStoreConnector gameStoreConnector) {
+    Thread thread = new Thread(new GameRunnable(boardState, gameId, gameStoreConnector, Executors.newSingleThreadScheduledExecutor()));
     thread.start();
     threadHolder.setThread(thread);
   }

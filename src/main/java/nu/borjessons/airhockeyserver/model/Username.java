@@ -1,11 +1,18 @@
 package nu.borjessons.airhockeyserver.model;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Objects;
 
-public record Username(String string) {
-  public Username {
+public class Username {
+  private Instant instant;
+  private final String string;
+
+  public Username(String string) {
     Objects.requireNonNull(string, "string must not be null");
+
+    this.instant = Instant.now();
+    this.string = string;
   }
 
   @Override
@@ -18,9 +25,17 @@ public record Username(String string) {
     return string.equalsIgnoreCase(other.string);
   }
 
+  public Instant getInstant() {
+    return instant;
+  }
+
   @Override
   public int hashCode() {
     return string.toLowerCase(Locale.ROOT).hashCode();
+  }
+
+  public void setInstant(Instant instant) {
+    this.instant = instant;
   }
 
   @Override

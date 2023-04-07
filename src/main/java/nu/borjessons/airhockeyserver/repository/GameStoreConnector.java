@@ -13,13 +13,13 @@ import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.utils.TopicUtils;
 
-public class GameStoreController {
+public class GameStoreConnector {
   private final GameStore gameStore;
   private final SimpMessagingTemplate messagingTemplate;
   private final String playerOneTopic;
   private final String playerTwoTopic;
 
-  public GameStoreController(GameStore gameStore, SimpMessagingTemplate messagingTemplate) {
+  public GameStoreConnector(GameStore gameStore, SimpMessagingTemplate messagingTemplate) {
     Objects.requireNonNull(gameStore, "gameStore must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
 

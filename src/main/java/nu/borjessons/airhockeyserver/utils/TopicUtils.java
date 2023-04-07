@@ -32,12 +32,16 @@ public final class TopicUtils {
     return String.format("/topic/game/%s/game-state", gameId);
   }
 
-  public static String createPlayerTopic(GameId gameId) {
-    return createPlayerTopic(gameId.toString());
+  public static String createPingTopic(Username username) {
+    return String.format("/topic/user/%s/ping", username);
   }
 
   public static String createPlayerTopic(String gameId) {
     return String.format("/topic/game/%s/players", gameId);
+  }
+
+  public static String createPlayerTopic(GameId gameId) {
+    return createPlayerTopic(gameId.toString());
   }
 
   public static String createUserTopic(Username username) {

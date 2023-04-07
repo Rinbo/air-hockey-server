@@ -2,7 +2,6 @@ package nu.borjessons.airhockeyserver.controller;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,14 +19,11 @@ import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.AuthRecord;
 import nu.borjessons.airhockeyserver.model.Game;
 import nu.borjessons.airhockeyserver.model.GameId;
-import nu.borjessons.airhockeyserver.model.GameState;
-import nu.borjessons.airhockeyserver.model.Notification;
-import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.UserMessage;
 import nu.borjessons.airhockeyserver.model.Username;
-import nu.borjessons.airhockeyserver.repository.GameStore;
 import nu.borjessons.airhockeyserver.service.api.CountdownService;
 import nu.borjessons.airhockeyserver.service.api.GameService;
+import nu.borjessons.airhockeyserver.utils.AppUtils;
 import nu.borjessons.airhockeyserver.utils.HeaderUtils;
 import nu.borjessons.airhockeyserver.utils.TopicUtils;
 
@@ -45,10 +41,6 @@ public class GameController {
     this.gameService = gameService;
     this.gameValidator = gameValidator;
     this.messagingTemplate = messagingTemplate;
-  }
-
-  private static String format(String message, Object... args) {
-    return String.format(Locale.ROOT, message, args);
   }
 
   @GetMapping("/games")
@@ -76,7 +68,7 @@ public class GameController {
 
     if (gameService.addUserToGame(gameId, username)) {
       logger.info("{} added to gameStore", username);
-      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(format("%s joined", username)));
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(AppUtils.format("%s joined", username)));
       messagingTemplate.convertAndSend(TopicUtils.GAMES_TOPIC, getGameList());
     }
 
@@ -96,8 +88,7 @@ public class GameController {
     logger.info("disconnect event {}", username);
 
     countdownService.cancelTimer(new GameId(id));
-    gameService.getPlayer(gameId, username).ifPresent(player -> handleUserDisconnect(gameId, player));
-    messagingTemplate.convertAndSend(TopicUtils.GAMES_TOPIC, getGameList());
+    gameService.handleUserDisconnect(gameId, username);
   }
 
   @MessageMapping("/game/{id}/toggle-ready")
@@ -125,42 +116,11 @@ public class GameController {
 
   private String createReadinessMessage(GameId gameId, Username username) {
     return gameService.getPlayer(gameId, username)
-        .map(player -> player.isReady() ? format("%s is ready", username) : format("%s cancelled readiness", username))
+        .map(player -> player.isReady() ? AppUtils.format("%s is ready", username) : AppUtils.format("%s cancelled readiness", username))
         .orElseThrow();
   }
 
   private List<Game> getGameList() {
     return gameService.getGameStores().stream().map(Game::new).toList();
-  }
-
-  private void handleUserDisconnect(GameId gameId, Player player) {
-    switch (player.getAgency()) {
-      case PLAYER_1 -> {
-        messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.PLAYER_1_DISCONNECT);
-        gameService.deleteGame(gameId);
-      }
-      case PLAYER_2 -> {
-        Username username = player.getUsername();
-
-        messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.LOBBY);
-        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(format("%s left", username)));
-
-        gameService.removeUser(gameId, username);
-        gameService.getGameStore(gameId).ifPresent(this::transitionIfRunning);
-        messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
-      }
-      default -> logger.error("player agency is not known {}", player.getAgency());
-    }
-  }
-
-  private void transitionIfRunning(GameStore gameStore) {
-    GameState gameState = gameStore.getGameState();
-    if (gameState == GameState.GAME_RUNNING) {
-      gameStore.transition(GameState.LOBBY);
-      GameId gameId = gameStore.getGameId();
-      gameStore.getPlayers().forEach(Player::toggleReady);
-      gameStore.terminate();
-      messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.PLAYER_2_DISCONNECT);
-    }
   }
 }

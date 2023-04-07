@@ -6,19 +6,19 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
-import nu.borjessons.airhockeyserver.repository.GameStoreController;
+import nu.borjessons.airhockeyserver.repository.GameStoreConnector;
 import nu.borjessons.airhockeyserver.utils.TestUtils;
 
 class GameRunnableTest {
 
   @Test
   void testDelay() {
-    GameStoreController gameStoreController = Mockito.mock(GameStoreController.class);
+    GameStoreConnector gameStoreConnector = Mockito.mock(GameStoreConnector.class);
 
-    Thread thread = new Thread(new GameRunnable(TestUtils.BOARD_STATE, TestUtils.GAME_ID, gameStoreController, Executors.newSingleThreadScheduledExecutor()));
+    Thread thread = new Thread(new GameRunnable(TestUtils.BOARD_STATE, TestUtils.GAME_ID, gameStoreConnector, Executors.newSingleThreadScheduledExecutor()));
     thread.start();
 
-    Mockito.verify(gameStoreController, Mockito.timeout(500).atLeast(10))
+    Mockito.verify(gameStoreConnector, Mockito.timeout(500).atLeast(10))
         .broadcast(ArgumentMatchers.any(BroadcastState.class), ArgumentMatchers.any(BroadcastState.class));
   }
 }

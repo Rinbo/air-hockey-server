@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.repository.GameStore;
@@ -21,23 +23,28 @@ class GameServiceImplTest {
   @Test
   void removeUserNonExistentGameIdTest() {
     Map<GameId, GameStore> gameStoreMap = createGameStoreMap();
-    GameService gameService = new GameServiceImpl(gameStoreMap);
+    SimpMessagingTemplate messagingTemplate = Mockito.mock(SimpMessagingTemplate.class);
+    GameService gameService = new GameServiceImpl(gameStoreMap, messagingTemplate);
 
     gameService.removeUser(new GameId("unknown"), TestUtils.USER1);
 
     Assertions.assertEquals(2, gameStoreMap.get(TestUtils.GAME_ID).getPlayers().size());
     Assertions.assertEquals(1, gameStoreMap.size());
+
+    Mockito.verifyNoInteractions(messagingTemplate);
   }
 
   @Test
   void removeUserTest() {
     Map<GameId, GameStore> gameStoreMap = createGameStoreMap();
-    GameService gameService = new GameServiceImpl(gameStoreMap);
+    SimpMessagingTemplate messagingTemplate = Mockito.mock(SimpMessagingTemplate.class);
+    GameService gameService = new GameServiceImpl(gameStoreMap, messagingTemplate);
 
     gameService.removeUser(TestUtils.GAME_ID, TestUtils.USER1);
     Assertions.assertEquals(TestUtils.PLAYER2, gameStoreMap.get(TestUtils.GAME_ID).getPlayers().iterator().next());
 
     gameService.removeUser(TestUtils.GAME_ID, TestUtils.PLAYER2.getUsername());
     Assertions.assertTrue(gameStoreMap.get(TestUtils.GAME_ID).getPlayers().isEmpty());
+    Mockito.verifyNoInteractions(messagingTemplate);
   }
 }
