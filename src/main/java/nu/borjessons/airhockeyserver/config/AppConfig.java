@@ -54,7 +54,7 @@ public class AppConfig {
 
   @Bean
   RepositoryCleaner createRepositoryCleaner(GameService gameService, UserStore userStore) {
-    return new RepositoryCleaner(gameService, Duration.ofSeconds(5), userStore);
+    return new RepositoryCleaner(gameService, Duration.ofMinutes(2), userStore);
   }
 
   @Bean

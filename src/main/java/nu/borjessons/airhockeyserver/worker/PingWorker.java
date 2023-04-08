@@ -15,7 +15,7 @@ public class PingWorker {
     this.userStore = userStore;
   }
 
-  @Scheduled(fixedRate = 2500)
+  @Scheduled(fixedRate = 10000)
   public void pingUsers() {
     userStore.getAll().forEach(username -> messagingTemplate.convertAndSend(TopicUtils.createPingTopic(username), "ping"));
   }
