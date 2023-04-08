@@ -30,7 +30,7 @@ public class UserStore {
     return users;
   }
 
-  public void pong(Username username) {
+  public void heartbeat(Username username) {
     Optional<Username> optional = users.stream().filter(username::equals).findFirst();
     optional.ifPresent(user -> user.setInstant(Instant.now()));
   }

@@ -35,9 +35,9 @@ public class UserController {
     this.userStore = userStore;
   }
 
-  @MessageMapping("/users/pong")
-  public void ePong(@Payload String username) {
-    userStore.pong(new Username(username));
+  @MessageMapping("/users/heartbeat")
+  public void eHeartbeat(@Payload String username) {
+    userStore.heartbeat(new Username(username));
   }
 
   // TODO add user to session using SimpleHeaderAccessor here instead of in game controller
