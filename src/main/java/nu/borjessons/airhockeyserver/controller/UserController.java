@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,9 +39,8 @@ public class UserController {
     userStore.heartbeat(new Username(username));
   }
 
-  // TODO add user to session using SimpleHeaderAccessor here instead of in game controller
   @MessageMapping("/users/enter")
-  public void enter(@Payload String username, SimpMessageHeaderAccessor header) {
+  public void enter(@Payload String username) {
     if (userStore.addUser(new Username(username))) {
       messagingTemplate.convertAndSend("/topic/users", userStore.getAll());
       logger.info("user entered: {}", username);
@@ -52,7 +50,7 @@ public class UserController {
   }
 
   @MessageMapping("/users/exit")
-  public void exit(@Payload String username, SimpMessageHeaderAccessor header) {
+  public void exit(@Payload String username) {
     userStore.removeUser(new Username(username));
     messagingTemplate.convertAndSend("/topic/users", userStore.getAll());
     logger.info("user exited: {}", username);

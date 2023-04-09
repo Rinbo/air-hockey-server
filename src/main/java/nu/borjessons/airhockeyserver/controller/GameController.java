@@ -97,6 +97,8 @@ public class GameController {
     GameId gameId = authRecord.gameId();
     Username username = authRecord.username();
 
+    logger.info("toggle ready: user: {}, in game: {}", username, gameId);
+
     gameService.toggleReady(gameId, username);
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
     messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), TopicUtils.createBotMessage(createReadinessMessage(gameId, username)));
