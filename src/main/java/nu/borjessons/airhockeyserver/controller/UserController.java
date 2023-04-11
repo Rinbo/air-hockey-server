@@ -1,10 +1,13 @@
 package nu.borjessons.airhockeyserver.controller;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -62,15 +65,24 @@ public class UserController {
     return userStore.getAll();
   }
 
-  @GetMapping("/{name}/validate")
-  public ResponseEntity<Username> validateName(@PathVariable String name) {
-    Username username = validateUsername(name, 0);
-    return ResponseEntity.ok(username);
+  @GetMapping(value = "/{name}/validate", produces = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<Response> validateName(@PathVariable String name) {
+    List<String> names = userStore.getAll().stream().map(Username::getTrimmed).map(String::toLowerCase).toList();
+    if (names.contains(new Username(name).getTrimmed().toLowerCase())) {
+      logger.info("We have a conflict {} {}", name, names);
+      return ResponseEntity.status(HttpStatus.CONFLICT).body(new Response("Already taken"));
+    }
+
+    logger.info("we are fine");
+    return ResponseEntity.ok(new Response(name));
   }
 
   private Username validateUsername(String name, int suffix) {
     Username username = suffix == 0 ? new Username(name) : new Username(name + "-" + suffix);
     if (!userStore.contains(username)) return username;
     return validateUsername(name, suffix + 1);
+  }
+
+  public static record Response(String data) {
   }
 }
