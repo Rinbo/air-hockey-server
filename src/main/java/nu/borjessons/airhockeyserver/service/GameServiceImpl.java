@@ -100,7 +100,7 @@ public class GameServiceImpl implements GameService {
         Username username = player.getUsername();
 
         messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.LOBBY);
-        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(AppUtils.format("%s left", username)));
+        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(AppUtils.format("%s left", username.getTrimmed())));
 
         removeUser(gameId, username);
         getGameStore(gameId).ifPresent(this::transitionIfRunning);

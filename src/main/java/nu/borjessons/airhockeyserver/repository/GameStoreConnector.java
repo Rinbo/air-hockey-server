@@ -35,7 +35,7 @@ public class GameStoreConnector {
 
     for (Player player : players) {
       stringBuilder
-          .append(player.getUsername())
+          .append(player.getUsername().getTrimmed())
           .append(": ")
           .append(player.getScore())
           .append(", ");

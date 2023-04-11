@@ -1,5 +1,7 @@
 package nu.borjessons.airhockeyserver.utils;
 
+import java.util.regex.Pattern;
+
 import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.model.UserMessage;
 import nu.borjessons.airhockeyserver.model.Username;
@@ -7,6 +9,7 @@ import nu.borjessons.airhockeyserver.model.Username;
 public final class TopicUtils {
   public static final String GAMES_TOPIC = "/topic/games";
   public static final Username GAME_BOT = new Username("Game Bot");
+  private static final Pattern UUID_PATTERN = Pattern.compile("[a-zA-Z0-9]{2,12}\\$[a-zA-Z0-9\\-]{36}");
 
   private TopicUtils() {
     throw new IllegalStateException();

@@ -27,7 +27,7 @@ public class UserStore {
   }
 
   public Set<Username> getAll() {
-    return users;
+    return Set.copyOf(users);
   }
 
   public void heartbeat(Username username) {

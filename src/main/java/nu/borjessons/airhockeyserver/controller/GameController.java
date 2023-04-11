@@ -68,7 +68,7 @@ public class GameController {
 
     if (gameService.addUserToGame(gameId, username)) {
       logger.info("{} added to gameStore", username);
-      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(AppUtils.format("%s joined", username)));
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(AppUtils.format("%s joined", username.getTrimmed())));
       messagingTemplate.convertAndSend(TopicUtils.GAMES_TOPIC, getGameList());
     }
 
@@ -97,8 +97,6 @@ public class GameController {
     GameId gameId = authRecord.gameId();
     Username username = authRecord.username();
 
-    logger.info("toggle ready: user: {}, in game: {}", username, gameId);
-
     gameService.toggleReady(gameId, username);
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
     messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), TopicUtils.createBotMessage(createReadinessMessage(gameId, username)));
@@ -118,7 +116,9 @@ public class GameController {
 
   private String createReadinessMessage(GameId gameId, Username username) {
     return gameService.getPlayer(gameId, username)
-        .map(player -> player.isReady() ? AppUtils.format("%s is ready", username) : AppUtils.format("%s cancelled readiness", username))
+        .map(player -> player.isReady() ?
+            AppUtils.format("%s is ready", username.getTrimmed()) :
+            AppUtils.format("%s cancelled readiness", username.getTrimmed()))
         .orElseThrow();
   }
 

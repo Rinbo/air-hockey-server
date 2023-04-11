@@ -29,6 +29,10 @@ public class Username {
     return instant;
   }
 
+  public String getTrimmed() {
+    return string.split("\\$")[0];
+  }
+
   @Override
   public int hashCode() {
     return string.toLowerCase(Locale.ROOT).hashCode();
