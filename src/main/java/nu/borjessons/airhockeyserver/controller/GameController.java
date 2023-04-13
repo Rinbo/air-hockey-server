@@ -89,7 +89,7 @@ public class GameController {
             () -> messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username), "FORBIDDEN")
         );
 
-    //messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), convertToNotification(gameService.getGameState(gameId)));
+    messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username), convertToNotification(gameService.getGameState(gameId)));
   }
 
   @MessageMapping("/game/{id}/disconnect")
