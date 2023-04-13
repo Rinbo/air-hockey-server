@@ -69,11 +69,9 @@ public class UserController {
   public ResponseEntity<Response> validateName(@PathVariable String name) {
     List<String> names = userStore.getAll().stream().map(Username::getTrimmed).map(String::toLowerCase).toList();
     if (names.contains(new Username(name).getTrimmed().toLowerCase())) {
-      logger.info("We have a conflict {} {}", name, names);
       return ResponseEntity.status(HttpStatus.CONFLICT).body(new Response("Already taken"));
     }
 
-    logger.info("we are fine");
     return ResponseEntity.ok(new Response(name));
   }
 
@@ -83,6 +81,6 @@ public class UserController {
     return validateUsername(name, suffix + 1);
   }
 
-  public static record Response(String data) {
+  public record Response(String data) {
   }
 }

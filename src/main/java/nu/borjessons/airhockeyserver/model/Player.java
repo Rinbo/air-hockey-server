@@ -7,10 +7,10 @@ import nu.borjessons.airhockeyserver.repository.GameStore;
 
 public class Player {
   private final Agency agency;
+  private int gamesWon;
   private boolean ready;
   private short score;
   private final Username username;
-
   public Player(Agency agency, Username username) {
     Objects.requireNonNull(username, "username must not be null");
     Objects.requireNonNull(agency, "agency must not be null");
@@ -39,6 +39,10 @@ public class Player {
     return agency;
   }
 
+  public int getGamesWon() {
+    return gamesWon;
+  }
+
   public short getScore() {
     return score;
   }
@@ -50,6 +54,10 @@ public class Player {
   @Override
   public int hashCode() {
     return username.hashCode();
+  }
+
+  public void incrementGamesWon() {
+    gamesWon++;
   }
 
   public boolean isPlayer(Username username) {

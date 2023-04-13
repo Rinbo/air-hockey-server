@@ -2,6 +2,7 @@ package nu.borjessons.airhockeyserver.repository;
 
 import java.util.Collection;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -44,6 +45,16 @@ public class GameStoreConnector {
     return stringBuilder.substring(0, stringBuilder.length() - 2);
   }
 
+  private static void updateGamesWon(Collection<Player> players) {
+    Optional<Player> player1Optional = players.stream().filter(player -> player.getAgency() == Agency.PLAYER_1).findFirst();
+    Optional<Player> player2Optional = players.stream().filter(player -> player.getAgency() == Agency.PLAYER_2).findFirst();
+
+    player1Optional.ifPresent(player1 -> player2Optional.ifPresent(player2 -> {
+      if (player1.getScore() > player2.getScore()) player1.incrementGamesWon();
+      if (player2.getScore() > player1.getScore()) player2.incrementGamesWon();
+    }));
+  }
+
   public void broadcast(BroadcastState playerOneState, BroadcastState playerTwoState) {
     messagingTemplate.convertAndSend(playerOneTopic, playerOneState);
     messagingTemplate.convertAndSend(playerTwoTopic, playerTwoState);
@@ -56,10 +67,13 @@ public class GameStoreConnector {
     messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.SCORE_SCREEN);
     messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(printResult(players)));
 
+    updateGamesWon(players);
+
     players.forEach(Player::toggleReady);
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), players);
 
     players.forEach(Player::resetScore);
+
     gameStore.transition(GameState.LOBBY);
     gameStore.terminate();
   }
