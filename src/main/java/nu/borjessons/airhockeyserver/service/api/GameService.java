@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Optional;
 
 import nu.borjessons.airhockeyserver.model.GameId;
+import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.repository.GameStore;
@@ -12,6 +13,8 @@ public interface GameService {
   boolean addUserToGame(GameId gameId, Username username);
 
   void deleteGame(GameId gameId);
+
+  GameState getGameState(GameId gameId);
 
   Optional<GameStore> getGameStore(GameId gameId);
 

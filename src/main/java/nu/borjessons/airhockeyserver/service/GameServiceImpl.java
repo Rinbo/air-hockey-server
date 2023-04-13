@@ -46,6 +46,15 @@ public class GameServiceImpl implements GameService {
   }
 
   @Override
+  public GameState getGameState(GameId gameId) {
+    if (gameStoreMap.containsKey(gameId)) {
+      return gameStoreMap.get(gameId).getGameState();
+    }
+
+    return GameState.LOBBY;
+  }
+
+  @Override
   public Optional<GameStore> getGameStore(GameId gameId) {
     return Optional.ofNullable(gameStoreMap.get(gameId));
   }

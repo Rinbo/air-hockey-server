@@ -18,8 +18,8 @@ public enum GameState {
       Objects.requireNonNull(newState, NEW_STATE);
 
       return switch (newState) {
-        case CREATOR_LEFT, LOBBY -> true;
-        case GAME_RUNNING -> false;
+        case GAME_RUNNING, LOBBY -> true;
+        case CREATOR_LEFT -> false;
       };
     }
   },

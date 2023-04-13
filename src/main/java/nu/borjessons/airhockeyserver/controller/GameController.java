@@ -19,6 +19,8 @@ import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.model.AuthRecord;
 import nu.borjessons.airhockeyserver.model.Game;
 import nu.borjessons.airhockeyserver.model.GameId;
+import nu.borjessons.airhockeyserver.model.GameState;
+import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.UserMessage;
 import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.service.api.CountdownService;
@@ -41,6 +43,14 @@ public class GameController {
     this.gameService = gameService;
     this.gameValidator = gameValidator;
     this.messagingTemplate = messagingTemplate;
+  }
+
+  private static Notification convertToNotification(GameState gameState) {
+    return switch (gameState) {
+      case CREATOR_LEFT -> Notification.PLAYER_1_DISCONNECT;
+      case GAME_RUNNING -> Notification.GAME_RUNNING;
+      case LOBBY -> Notification.LOBBY;
+    };
   }
 
   @GetMapping("/games")
@@ -78,6 +88,8 @@ public class GameController {
             player -> messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId)),
             () -> messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username), "FORBIDDEN")
         );
+
+    //messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), convertToNotification(gameService.getGameState(gameId)));
   }
 
   @MessageMapping("/game/{id}/disconnect")
