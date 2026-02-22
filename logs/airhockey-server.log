@@ -1,0 +1,16 @@
+2026-02-22T21:37:56.834+01:00  INFO 98918 --- [main] n.b.a.AirHockeyServerApplication         : Starting AirHockeyServerApplication using Java 25.0.1 with PID 98918 (/Users/robinborjesson/dev/java/air-hockey-server/target/classes started by robinborjesson in /Users/robinborjesson/dev/java/air-hockey-server)
+2026-02-22T21:37:56.835+01:00  INFO 98918 --- [main] n.b.a.AirHockeyServerApplication         : No active profile set, falling back to 1 default profile: "default"
+2026-02-22T21:37:57.213+01:00  INFO 98918 --- [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-02-22T21:37:57.219+01:00  INFO 98918 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-02-22T21:37:57.220+01:00  INFO 98918 --- [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-02-22T21:37:57.236+01:00  INFO 98918 --- [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 376 ms
+2026-02-22T21:37:57.407+01:00  INFO 98918 --- [main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-02-22T21:37:57.408+01:00  INFO 98918 --- [main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1536ea40]]
+2026-02-22T21:37:57.408+01:00  INFO 98918 --- [main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-02-22T21:37:57.418+01:00  INFO 98918 --- [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-02-22T21:37:57.421+01:00  INFO 98918 --- [main] n.b.a.AirHockeyServerApplication         : Started AirHockeyServerApplication in 0.764 seconds (process running for 0.915)
+2026-02-22T21:38:05.468+01:00  INFO 98918 --- [SpringApplicationShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-02-22T21:38:07.489+01:00  INFO 98918 --- [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-02-22T21:38:07.496+01:00  INFO 98918 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-02-22T21:38:07.496+01:00  INFO 98918 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1536ea40]]
+2026-02-22T21:38:07.497+01:00  INFO 98918 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.

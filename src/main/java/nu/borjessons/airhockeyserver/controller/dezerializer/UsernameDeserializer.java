@@ -2,17 +2,15 @@ package nu.borjessons.airhockeyserver.controller.dezerializer;
 
 import java.io.IOException;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.ValueDeserializer;
 
 import nu.borjessons.airhockeyserver.model.Username;
 
-public class UsernameDeserializer extends JsonDeserializer<Username> {
+public class UsernameDeserializer extends ValueDeserializer<Username> {
   @Override
-  public Username deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
-    JsonNode jsonNode = jsonParser.getCodec().readTree(jsonParser);
-    return new Username(jsonNode.asText());
+  public Username deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) {
+    return new Username(jsonParser.getString());
   }
 }

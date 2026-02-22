@@ -28,7 +28,7 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>4.34.0-RC2</version>
+      <version>3.21.12</version>
     </dependency>
 
     <dependency>
@@ -39,7 +39,7 @@
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-controls</artifactId>
-      <version>27-ea+5</version>
+      <version>21-ea+5</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

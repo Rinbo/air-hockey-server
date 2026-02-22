@@ -9,9 +9,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.module.SimpleModule;
 
 import nu.borjessons.airhockeyserver.controller.dezerializer.GameIdDeserializer;
 import nu.borjessons.airhockeyserver.controller.dezerializer.UsernameDeserializer;
@@ -34,7 +33,6 @@ public class AppConfig {
 
   @Bean
   ObjectMapper createObjectMapper() {
-    ObjectMapper objectMapper = new ObjectMapper();
     SimpleModule simpleModule = new SimpleModule();
 
     simpleModule.addSerializer(GameId.class, new GameIdSerializer());
@@ -43,8 +41,7 @@ public class AppConfig {
     simpleModule.addDeserializer(GameId.class, new GameIdDeserializer());
     simpleModule.addDeserializer(Username.class, new UsernameDeserializer());
 
-    objectMapper.registerModules(new JavaTimeModule(), simpleModule);
-    return objectMapper;
+    return tools.jackson.databind.json.JsonMapper.builder().addModule(simpleModule).build();
   }
 
   @Bean

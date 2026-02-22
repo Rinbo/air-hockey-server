@@ -2,15 +2,15 @@ package nu.borjessons.airhockeyserver.controller.serializer;
 
 import java.io.IOException;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.SerializationContext;
 
 import nu.borjessons.airhockeyserver.model.GameId;
 
-public class GameIdSerializer extends JsonSerializer<GameId> {
+public class GameIdSerializer extends ValueSerializer<GameId> {
   @Override
-  public void serialize(GameId gameId, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+  public void serialize(GameId gameId, JsonGenerator jsonGenerator, SerializationContext serializationContext) {
     jsonGenerator.writeString(gameId.toString());
   }
 }
