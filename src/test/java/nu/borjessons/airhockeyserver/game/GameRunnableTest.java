@@ -1,7 +1,5 @@
 package nu.borjessons.airhockeyserver.game;
 
-import java.util.concurrent.Executors;
-
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
@@ -15,7 +13,7 @@ class GameRunnableTest {
   void testDelay() {
     GameStoreConnector gameStoreConnector = Mockito.mock(GameStoreConnector.class);
 
-    Thread thread = new Thread(new GameRunnable(TestUtils.BOARD_STATE, TestUtils.GAME_ID, gameStoreConnector, Executors.newSingleThreadScheduledExecutor()));
+    Thread thread = new Thread(new GameRunnable(TestUtils.BOARD_STATE, TestUtils.GAME_ID, gameStoreConnector));
     thread.start();
 
     Mockito.verify(gameStoreConnector, Mockito.timeout(500).atLeast(10))

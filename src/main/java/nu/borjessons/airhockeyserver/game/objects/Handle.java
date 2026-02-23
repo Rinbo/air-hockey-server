@@ -6,17 +6,18 @@ import nu.borjessons.airhockeyserver.game.properties.Radius;
 import nu.borjessons.airhockeyserver.game.properties.Speed;
 
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 
 public final class Handle extends Circle {
-    private final AtomicReference<Speed> speedReference;
-    private Position previousPosition;
+    private volatile double speedX;
+    private volatile double speedY;
+    private double previousX;
+    private double previousY;
 
     private Handle(Position position, Radius radius) {
         super(position, radius);
 
-        this.previousPosition = position;
-        this.speedReference = new AtomicReference<>(GameConstants.ZERO_SPEED);
+        this.previousX = position.x();
+        this.previousY = position.y();
     }
 
     public static Handle create(Position position) {
@@ -33,16 +34,14 @@ public final class Handle extends Circle {
     }
 
     public Speed getSpeed() {
-        return speedReference.get();
-    }
-
-    public void setSpeed(Speed speed) {
-        speedReference.set(speed);
+        return new Speed(speedX, speedY);
     }
 
     public void updateSpeed() {
         Position position = super.getPosition();
-        setSpeed(new Speed(position.x() - previousPosition.x(), position.y() - previousPosition.y()));
-        previousPosition = position;
+        speedX = position.x() - previousX;
+        speedY = position.y() - previousY;
+        previousX = position.x();
+        previousY = position.y();
     }
 }

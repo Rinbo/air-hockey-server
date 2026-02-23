@@ -10,13 +10,15 @@ import nu.borjessons.airhockeyserver.game.properties.Vector;
 
 public final class Puck extends Circle {
   private long friction;
-  private Speed speed;
+  private double speedX;
+  private double speedY;
 
   private Puck(Position position, Radius radius) {
     super(position, radius);
 
     friction = 0;
-    speed = GameConstants.ZERO_SPEED;
+    speedX = 0;
+    speedY = 0;
   }
 
   public static Puck copyOf(Puck puck) {
@@ -34,8 +36,8 @@ public final class Puck extends Circle {
     return new Puck(position, radius);
   }
 
-  private static double dotProduct(Speed speed, Vector vector) {
-    return speed.x() * vector.x() + speed.y() * vector.y();
+  private static double dotProduct(double sx, double sy, Vector vector) {
+    return sx * vector.x() + sy * vector.y();
   }
 
   private static double getXRecoverySpeed(double xCoordinate, double xRadius) {
@@ -55,7 +57,15 @@ public final class Puck extends Circle {
   }
 
   public Speed getSpeed() {
-    return speed;
+    return new Speed(speedX, speedY);
+  }
+
+  public double getSpeedX() {
+    return speedX;
+  }
+
+  public double getSpeedY() {
+    return speedY;
   }
 
   public void offsetCollisionWith(Handle handle, double angle) {
@@ -82,13 +92,29 @@ public final class Puck extends Circle {
   }
 
   public void ricochet(Vector vector) {
-    double scalar = dotProduct(speed, vector) / dotProduct(Speed.from(vector), vector) * -1;
-    speed = new Speed(vector.x() * scalar, vector.y() * scalar);
+    double dp = dotProduct(speedX, speedY, vector);
+    double dpVec = dotProduct(vector.x(), vector.y(), vector);
+    double scalar = dp / dpVec * -1;
+    speedX = vector.x() * scalar;
+    speedY = vector.y() * scalar;
   }
 
   public void setSpeed(Speed speed) {
-    this.speed = new Speed(Math.min(GameConstants.MAX_SPEED_CONSTITUENT, speed.x()),
-        Math.min(GameConstants.MAX_SPEED_CONSTITUENT, speed.y()));
+    this.speedX = Math.min(GameConstants.MAX_SPEED_CONSTITUENT, speed.x());
+    this.speedY = Math.min(GameConstants.MAX_SPEED_CONSTITUENT, speed.y());
+  }
+
+  public void setSpeedXY(double x, double y) {
+    this.speedX = Math.min(GameConstants.MAX_SPEED_CONSTITUENT, x);
+    this.speedY = Math.min(GameConstants.MAX_SPEED_CONSTITUENT, y);
+  }
+
+  public void negateSpeedX() {
+    this.speedX = -this.speedX;
+  }
+
+  public void negateSpeedY() {
+    this.speedY = -this.speedY;
   }
 
   private double getFrictionCoefficient() {
@@ -97,18 +123,21 @@ public final class Puck extends Circle {
 
   private void handleFriction() {
     double frictionCoefficient = getFrictionCoefficient();
-    this.speed = new Speed(speed.x() * frictionCoefficient, speed.y() * frictionCoefficient);
+    this.speedX *= frictionCoefficient;
+    this.speedY *= frictionCoefficient;
     this.friction++;
   }
 
   private void handleStalePuck(Position position, Radius radius) {
-    double newX = speed.x() == 0 ? getXRecoverySpeed(position.x(), radius.x()) : speed.x();
-    double newY = speed.y() == 0 ? getYRecoverySpeed(position.y(), radius.y()) : speed.y();
-    if (newX != speed.x() || newY != speed.y())
-      this.speed = new Speed(newX, newY);
+    double newX = speedX == 0 ? getXRecoverySpeed(position.x(), radius.x()) : speedX;
+    double newY = speedY == 0 ? getYRecoverySpeed(position.y(), radius.y()) : speedY;
+    if (newX != speedX || newY != speedY) {
+      this.speedX = newX;
+      this.speedY = newY;
+    }
   }
 
   private void movePuck(Position position) {
-    setPosition(new Position(position.x() + speed.x(), position.y() + speed.y()));
+    setPosition(new Position(position.x() + speedX, position.y() + speedY));
   }
 }

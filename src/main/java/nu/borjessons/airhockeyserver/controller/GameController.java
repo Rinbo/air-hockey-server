@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import nu.borjessons.airhockeyserver.controller.security.GameValidator;
 import nu.borjessons.airhockeyserver.game.properties.Position;
+import nu.borjessons.airhockeyserver.model.Agency;
 import nu.borjessons.airhockeyserver.model.AuthRecord;
 import nu.borjessons.airhockeyserver.model.Game;
 import nu.borjessons.airhockeyserver.model.GameId;
@@ -38,7 +39,8 @@ public class GameController {
   private final GameValidator gameValidator;
   private final SimpMessagingTemplate messagingTemplate;
 
-  public GameController(CountdownService countdownService, GameService gameService, GameValidator gameValidator, SimpMessagingTemplate messagingTemplate) {
+  public GameController(CountdownService countdownService, GameService gameService, GameValidator gameValidator,
+      SimpMessagingTemplate messagingTemplate) {
     this.countdownService = countdownService;
     this.gameService = gameService;
     this.gameValidator = gameValidator;
@@ -60,14 +62,16 @@ public class GameController {
   }
 
   @MessageMapping("/game/{id}/chat")
-  public void handleChat(@DestinationVariable String id, @Payload UserMessage userMessage, SimpMessageHeaderAccessor header) {
+  public void handleChat(@DestinationVariable String id, @Payload UserMessage userMessage,
+      SimpMessageHeaderAccessor header) {
     gameValidator.validateUser(header, id);
 
     messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), userMessage);
   }
 
   @MessageMapping("/game/{id}/connect")
-  public void handleConnect(@DestinationVariable String id, @Payload UserMessage userMessage, SimpMessageHeaderAccessor header) {
+  public void handleConnect(@DestinationVariable String id, @Payload UserMessage userMessage,
+      SimpMessageHeaderAccessor header) {
     Username username = userMessage.username();
     GameId gameId = new GameId(id);
 
@@ -78,18 +82,22 @@ public class GameController {
 
     if (gameService.addUserToGame(gameId, username)) {
       logger.info("{} added to gameStore", username);
-      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(AppUtils.format("%s joined", username.getTrimmed())));
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId),
+          TopicUtils.createBotMessage(AppUtils.format("%s joined", username.getTrimmed())));
       messagingTemplate.convertAndSend(TopicUtils.GAMES_TOPIC, getGameList());
     }
 
     gameService
         .getPlayer(gameId, username)
         .ifPresentOrElse(
-            player -> messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId)),
-            () -> messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username), "FORBIDDEN")
-        );
+            player -> {
+              HeaderUtils.setAgency(header, player.getAgency());
+              messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
+            },
+            () -> messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username), "FORBIDDEN"));
 
-    messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username), convertToNotification(gameService.getGameState(gameId)));
+    messagingTemplate.convertAndSend(TopicUtils.createUserTopic(username),
+        convertToNotification(gameService.getGameState(gameId)));
   }
 
   @MessageMapping("/game/{id}/disconnect")
@@ -111,26 +119,27 @@ public class GameController {
 
     gameService.toggleReady(gameId, username);
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
-    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id), TopicUtils.createBotMessage(createReadinessMessage(gameId, username)));
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id),
+        TopicUtils.createBotMessage(createReadinessMessage(gameId, username)));
     countdownService.handleBothPlayersReady(gameId, username);
   }
 
   @MessageMapping("/game/{id}/update-handle")
-  public void updateHandle(@DestinationVariable String id, @Payload Position position, SimpMessageHeaderAccessor header) {
-    AuthRecord authRecord = gameValidator.validateUser(header, id);
-    GameId gameId = authRecord.gameId();
-    Username username = authRecord.username();
+  public void updateHandle(@DestinationVariable String id, @Payload Position position,
+      SimpMessageHeaderAccessor header) {
+    GameId gameId = HeaderUtils.getGameId(header);
+    Agency agency = HeaderUtils.getAgency(header);
 
-    gameService.getGameStore(gameId).ifPresent(gameStore ->
-        gameStore.getPlayer(username).ifPresent(player -> gameStore.updateHandle(position, player.getAgency()))
-    );
+    if (agency == null)
+      return;
+
+    gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.updateHandle(position, agency));
   }
 
   private String createReadinessMessage(GameId gameId, Username username) {
     return gameService.getPlayer(gameId, username)
-        .map(player -> player.isReady() ?
-            AppUtils.format("%s is ready", username.getTrimmed()) :
-            AppUtils.format("%s cancelled readiness", username.getTrimmed()))
+        .map(player -> player.isReady() ? AppUtils.format("%s is ready", username.getTrimmed())
+            : AppUtils.format("%s cancelled readiness", username.getTrimmed()))
         .orElseThrow();
   }
 

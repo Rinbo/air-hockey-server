@@ -1,12 +1,8 @@
 package nu.borjessons.airhockeyserver.game;
 
 import java.util.Objects;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,14 +20,22 @@ import nu.borjessons.airhockeyserver.repository.GameStoreConnector;
 
 class GameRunnable implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
+  private static final long FRAME_DURATION_NS = 1_000_000_000L / GameConstants.FRAME_RATE;
+  private static final long GAME_DURATION_NS = GameConstants.GAME_DURATION.toNanos();
+  private static final long PUCK_RESET_DURATION_NS = GameConstants.PUCK_RESET_DURATION.toNanos();
 
   private final BoardState boardState;
+  private final BroadcastState p1State = new BroadcastState();
+  private final BroadcastState p2State = new BroadcastState();
   private final GameId gameId;
   private final GameStoreConnector gameStoreConnector;
-  private final ScheduledExecutorService scheduledExecutorService;
 
-  public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector,
-      ScheduledExecutorService scheduledExecutorService) {
+  // Puck reset state: when > 0, the puck is waiting to be placed back on the
+  // board
+  private long puckResetRemainingNs;
+  private Position puckResetTarget;
+
+  public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector) {
     Objects.requireNonNull(boardState, "boardState must not be null");
     Objects.requireNonNull(gameId, "gameId must not be null");
     Objects.requireNonNull(gameStoreConnector, "gameStoreController must not be null");
@@ -39,7 +43,6 @@ class GameRunnable implements Runnable {
     this.boardState = boardState;
     this.gameStoreConnector = gameStoreConnector;
     this.gameId = gameId;
-    this.scheduledExecutorService = scheduledExecutorService;
   }
 
   /**
@@ -77,17 +80,45 @@ class GameRunnable implements Runnable {
   public void run() {
     logger.info("Starting game loop: {}", gameId);
 
-    ScheduledFuture<String> schedule = scheduledExecutorService.schedule(() -> "complete",
-        GameConstants.GAME_DURATION.getSeconds(), TimeUnit.SECONDS);
+    long gameStartNs = System.nanoTime();
+    long previousFrameNs = gameStartNs;
 
     while (!Thread.currentThread().isInterrupted()) {
       try {
-        isGameComplete(schedule.isDone());
+        long now = System.nanoTime();
+        long elapsedSinceStart = now - gameStartNs;
+        long frameDelta = now - previousFrameNs;
+        previousFrameNs = now;
+
+        // Check game over
+        if (elapsedSinceStart >= GAME_DURATION_NS) {
+          gameStoreConnector.gameComplete();
+          boardState.resetObjects();
+          break;
+        }
+
+        // Tick puck reset timer
+        if (puckResetRemainingNs > 0) {
+          puckResetRemainingNs -= frameDelta;
+          if (puckResetRemainingNs <= 0) {
+            boardState.puck().setPosition(puckResetTarget);
+            puckResetTarget = null;
+          }
+        }
+
         Collision collision = detectCollision();
         handleCollision(collision);
         tickBoardState();
-        broadcast(schedule.getDelay(TimeUnit.SECONDS));
-        TimeUnit.MILLISECONDS.sleep(1000 / GameConstants.FRAME_RATE);
+
+        long remainingSeconds = (GAME_DURATION_NS - elapsedSinceStart) / 1_000_000_000L;
+        broadcast(remainingSeconds);
+
+        // Sleep precisely for the remaining frame time
+        long frameEnd = System.nanoTime();
+        long sleepNs = FRAME_DURATION_NS - (frameEnd - now);
+        if (sleepNs > 0) {
+          Thread.sleep(sleepNs / 1_000_000, (int) (sleepNs % 1_000_000));
+        }
       } catch (InterruptedException e) {
         logger.info("Interrupt called on gameThread: {}", gameId);
         Thread.currentThread().interrupt();
@@ -95,17 +126,16 @@ class GameRunnable implements Runnable {
     }
 
     logger.info("exiting game loop: {}", gameId);
-    scheduledExecutorService.shutdownNow();
   }
 
   private void broadcast(long remainingSeconds) {
     Position puckPosition = boardState.puck().getPosition();
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
-    gameStoreConnector.broadcast(
-        new BroadcastState(playerTwoHandlePosition, puckPosition, remainingSeconds),
-        new BroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition),
-            remainingSeconds));
+
+    p1State.set(playerTwoHandlePosition, puckPosition, remainingSeconds);
+    p2State.setMirrored(playerOneHandlePosition, puckPosition, remainingSeconds);
+    gameStoreConnector.broadcast(p1State, p2State);
   }
 
   private Collision detectCollision() {
@@ -148,23 +178,15 @@ class GameRunnable implements Runnable {
     }
   }
 
-  private void isGameComplete(boolean isComplete) {
-    if (isComplete) {
-      gameStoreConnector.gameComplete();
-      boardState.resetObjects();
-    }
-  }
-
   private void onBottomWallCollision() {
     Puck puck = boardState.puck();
     puck.setPosition(new Position(puck.getPosition().x(), 1 - puck.getRadius().y()));
-    updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
+    puck.negateSpeedY();
   }
 
-  // TODO this and the above can be added to puck mechanics
   private void onLeftWallCollision() {
     Puck puck = boardState.puck();
-    updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
+    puck.negateSpeedX();
     puck.setPosition(new Position(0 + puck.getRadius().x(), puck.getPosition().y()));
   }
 
@@ -172,10 +194,10 @@ class GameRunnable implements Runnable {
     gameStoreConnector.updatePlayerScore(player);
     Puck puck = boardState.puck();
     puck.setPosition(GameConstants.OFF_BOARD_POSITION);
-    puck.setSpeed(GameConstants.ZERO_SPEED);
-    Position position = player == Agency.PLAYER_1 ? GameConstants.PUCK_START_P2 : GameConstants.PUCK_START_P1;
-    scheduledExecutorService.schedule(() -> puck.setPosition(position), GameConstants.PUCK_RESET_DURATION.getSeconds(),
-        TimeUnit.SECONDS);
+    puck.setSpeedXY(0, 0);
+
+    puckResetTarget = player == Agency.PLAYER_1 ? GameConstants.PUCK_START_P2 : GameConstants.PUCK_START_P1;
+    puckResetRemainingNs = PUCK_RESET_DURATION_NS;
   }
 
   private void onPuckHandleCollision(Function<BoardState, Handle> handleSelector) {
@@ -196,24 +218,19 @@ class GameRunnable implements Runnable {
 
   private void onRightWallCollision() {
     Puck puck = boardState.puck();
-    updatePuckSpeed(speed -> new Speed(-1 * speed.x(), speed.y()));
+    puck.negateSpeedX();
     puck.setPosition(new Position(1 - puck.getRadius().x(), puck.getPosition().y()));
   }
 
   private void onTopWallCollision() {
     Puck puck = boardState.puck();
     puck.setPosition(new Position(puck.getPosition().x(), 0 + puck.getRadius().y()));
-    updatePuckSpeed(speed -> new Speed(speed.x(), -1 * speed.y()));
+    puck.negateSpeedY();
   }
 
   private void tickBoardState() {
     boardState.puck().onTick();
     boardState.playerOne().updateSpeed();
     boardState.playerTwo().updateSpeed();
-  }
-
-  private void updatePuckSpeed(UnaryOperator<Speed> speedUpdater) {
-    Puck puck = boardState.puck();
-    puck.setSpeed(speedUpdater.apply(puck.getSpeed()));
   }
 }
