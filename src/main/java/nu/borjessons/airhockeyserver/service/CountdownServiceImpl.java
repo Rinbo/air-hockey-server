@@ -36,11 +36,10 @@ public class CountdownServiceImpl implements CountdownService {
 
   @Override
   public void cancelTimer(GameId gameId) {
-    if (countdownMap.containsKey(gameId)) {
+    Timer timer = countdownMap.remove(gameId);
+    if (timer != null) {
       sendCancelMessage(gameId);
-      Timer timer = countdownMap.get(gameId);
       timer.cancel();
-      countdownMap.remove(gameId);
     }
   }
 
@@ -54,10 +53,12 @@ public class CountdownServiceImpl implements CountdownService {
       timer.schedule(timerTask, 0, 1000);
 
       countdownMap.put(gameId, timer);
-    } else if (countdownMap.containsKey(gameId)) {
-      countdownMap.get(gameId).cancel();
-      countdownMap.remove(gameId);
-      sendCancelMessage(gameId);
+    } else {
+      Timer existing = countdownMap.remove(gameId);
+      if (existing != null) {
+        existing.cancel();
+        sendCancelMessage(gameId);
+      }
     }
   }
 
@@ -67,7 +68,8 @@ public class CountdownServiceImpl implements CountdownService {
 
       @Override
       public void run() {
-        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--));
+        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId),
+            new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--));
         if (count < 0) {
           gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.startGame(messagingTemplate));
           messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.GAME_RUNNING);
@@ -79,6 +81,7 @@ public class CountdownServiceImpl implements CountdownService {
   }
 
   private void sendCancelMessage(GameId gameId) {
-    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()), new UserMessage(TopicUtils.GAME_BOT, "Countdown cancelled"));
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId.toString()),
+        new UserMessage(TopicUtils.GAME_BOT, "Countdown cancelled"));
   }
 }

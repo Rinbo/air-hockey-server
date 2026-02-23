@@ -1,7 +1,6 @@
 package nu.borjessons.airhockeyserver.config;
 
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -56,6 +55,6 @@ public class AppConfig {
 
   @Bean
   UserStore createUserstore() {
-    return new UserStore(new HashSet<>());
+    return new UserStore();
   }
 }

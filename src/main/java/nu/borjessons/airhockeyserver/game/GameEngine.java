@@ -11,15 +11,14 @@ import nu.borjessons.airhockeyserver.repository.GameStoreConnector;
 
 public class GameEngine {
   private final BoardState boardState;
-  private final ThreadHolder threadHolder;
+  private volatile Thread gameThread;
 
-  private GameEngine(BoardState boardState, ThreadHolder threadHolder) {
+  private GameEngine(BoardState boardState) {
     this.boardState = boardState;
-    this.threadHolder = threadHolder;
   }
 
   public static GameEngine create() {
-    return new GameEngine(GameConstants.createInitialGameState(), new ThreadHolder());
+    return new GameEngine(GameConstants.createInitialGameState());
   }
 
   public static Position mirror(Position position) {
@@ -27,13 +26,17 @@ public class GameEngine {
   }
 
   public void startGame(GameId gameId, GameStoreConnector gameStoreConnector) {
-    Thread thread = new Thread(new GameRunnable(boardState, gameId, gameStoreConnector, Executors.newSingleThreadScheduledExecutor()));
-    thread.start();
-    threadHolder.setThread(thread);
+    if (gameThread != null)
+      throw new IllegalStateException("Game already running");
+
+    gameThread = Thread.ofVirtual()
+        .name("game-" + gameId)
+        .start(new GameRunnable(boardState, gameId, gameStoreConnector, Executors.newSingleThreadScheduledExecutor()));
   }
 
   public void terminate() {
-    threadHolder.getThread().ifPresent(Thread::interrupt);
+    if (gameThread != null)
+      gameThread.interrupt();
   }
 
   public void updateHandle(Function<BoardState, Handle> function, Position position) {

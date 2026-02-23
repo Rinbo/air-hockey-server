@@ -1,8 +1,8 @@
 package nu.borjessons.airhockeyserver.repository;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -57,7 +57,8 @@ public class GameStore {
   }
 
   public Optional<Username> getGameCreator() {
-    return players.stream().filter(player -> player.getAgency() == Agency.PLAYER_1).map(Player::getUsername).findFirst();
+    return players.stream().filter(player -> player.getAgency() == Agency.PLAYER_1).map(Player::getUsername)
+        .findFirst();
   }
 
   public GameId getGameId() {
@@ -73,7 +74,7 @@ public class GameStore {
   }
 
   public synchronized Collection<Player> getPlayers() {
-    return players.stream().sorted(Comparator.comparing(Player::getAgency)).toList();
+    return List.copyOf(players);
   }
 
   public boolean isJoinable() {

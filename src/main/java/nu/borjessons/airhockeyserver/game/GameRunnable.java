@@ -30,7 +30,8 @@ class GameRunnable implements Runnable {
   private final GameStoreConnector gameStoreConnector;
   private final ScheduledExecutorService scheduledExecutorService;
 
-  public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector, ScheduledExecutorService scheduledExecutorService) {
+  public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector,
+      ScheduledExecutorService scheduledExecutorService) {
     Objects.requireNonNull(boardState, "boardState must not be null");
     Objects.requireNonNull(gameId, "gameId must not be null");
     Objects.requireNonNull(gameStoreConnector, "gameStoreController must not be null");
@@ -47,11 +48,8 @@ class GameRunnable implements Runnable {
   private static double calculatePuckHandleDistance(Position puckPosition, Position handlePosition) {
     double xDiff = puckPosition.x() - handlePosition.x();
     double yDiff = puckPosition.y() - handlePosition.y();
-    return Math.sqrt(Math.pow(xDiff, 2) + Math.pow(yDiff / GameConstants.BOARD_ASPECT_RATIO, 2));
-  }
-
-  private static BroadcastState createBroadcastState(Position opponentPosition, Position puckPosition, long remainingSeconds) {
-    return new BroadcastState(opponentPosition, puckPosition, remainingSeconds);
+    return Math
+        .sqrt(xDiff * xDiff + (yDiff / GameConstants.BOARD_ASPECT_RATIO) * (yDiff / GameConstants.BOARD_ASPECT_RATIO));
   }
 
   private static boolean isBottomWallHit(Position puckPosition) {
@@ -71,14 +69,16 @@ class GameRunnable implements Runnable {
   }
 
   private static boolean puckHandleCollision(Position puckPosition, Supplier<Handle> supplier) {
-    return calculatePuckHandleDistance(puckPosition, supplier.get().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE;
+    return calculatePuckHandleDistance(puckPosition,
+        supplier.get().getPosition()) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE;
   }
 
   @Override
   public void run() {
     logger.info("Starting game loop: {}", gameId);
 
-    ScheduledFuture<String> schedule = scheduledExecutorService.schedule(() -> "complete", GameConstants.GAME_DURATION.getSeconds(), TimeUnit.SECONDS);
+    ScheduledFuture<String> schedule = scheduledExecutorService.schedule(() -> "complete",
+        GameConstants.GAME_DURATION.getSeconds(), TimeUnit.SECONDS);
 
     while (!Thread.currentThread().isInterrupted()) {
       try {
@@ -95,6 +95,7 @@ class GameRunnable implements Runnable {
     }
 
     logger.info("exiting game loop: {}", gameId);
+    scheduledExecutorService.shutdownNow();
   }
 
   private void broadcast(long remainingSeconds) {
@@ -102,22 +103,32 @@ class GameRunnable implements Runnable {
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
     gameStoreConnector.broadcast(
-        createBroadcastState(playerTwoHandlePosition, puckPosition, remainingSeconds),
-        createBroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition), remainingSeconds));
+        new BroadcastState(playerTwoHandlePosition, puckPosition, remainingSeconds),
+        new BroadcastState(GameEngine.mirror(playerOneHandlePosition), GameEngine.mirror(puckPosition),
+            remainingSeconds));
   }
 
   private Collision detectCollision() {
     Position puckPosition = boardState.puck().getPosition();
 
-    if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION)) return Collision.NO_COLLISION;
-    if (puckPosition.y() - GameConstants.PUCK_RADIUS.y() > 1) return Collision.P1_GOAL;
-    if (puckPosition.y() + GameConstants.PUCK_RADIUS.y() < 0) return Collision.P2_GOAL;
-    if (isTopWallHit(puckPosition)) return Collision.TOP_WALL;
-    if (isBottomWallHit(puckPosition)) return Collision.BOTTOM_WALL;
-    if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0) return Collision.LEFT_WALL;
-    if ((puckPosition.x() + GameConstants.PUCK_RADIUS.x()) >= 1) return Collision.RIGHT_WALL;
-    if (puckHandleCollision(puckPosition, boardState::playerOne)) return Collision.P1_HANDLE;
-    if (puckHandleCollision(puckPosition, boardState::playerTwo)) return Collision.P2_HANDLE;
+    if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION))
+      return Collision.NO_COLLISION;
+    if (puckPosition.y() - GameConstants.PUCK_RADIUS.y() > 1)
+      return Collision.P1_GOAL;
+    if (puckPosition.y() + GameConstants.PUCK_RADIUS.y() < 0)
+      return Collision.P2_GOAL;
+    if (isTopWallHit(puckPosition))
+      return Collision.TOP_WALL;
+    if (isBottomWallHit(puckPosition))
+      return Collision.BOTTOM_WALL;
+    if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0)
+      return Collision.LEFT_WALL;
+    if ((puckPosition.x() + GameConstants.PUCK_RADIUS.x()) >= 1)
+      return Collision.RIGHT_WALL;
+    if (puckHandleCollision(puckPosition, boardState::playerOne))
+      return Collision.P1_HANDLE;
+    if (puckHandleCollision(puckPosition, boardState::playerTwo))
+      return Collision.P2_HANDLE;
 
     return Collision.NO_COLLISION;
   }
@@ -163,7 +174,8 @@ class GameRunnable implements Runnable {
     puck.setPosition(GameConstants.OFF_BOARD_POSITION);
     puck.setSpeed(GameConstants.ZERO_SPEED);
     Position position = player == Agency.PLAYER_1 ? GameConstants.PUCK_START_P2 : GameConstants.PUCK_START_P1;
-    scheduledExecutorService.schedule(() -> puck.setPosition(position), GameConstants.PUCK_RESET_DURATION.getSeconds(), TimeUnit.SECONDS);
+    scheduledExecutorService.schedule(() -> puck.setPosition(position), GameConstants.PUCK_RESET_DURATION.getSeconds(),
+        TimeUnit.SECONDS);
   }
 
   private void onPuckHandleCollision(Function<BoardState, Handle> handleSelector) {

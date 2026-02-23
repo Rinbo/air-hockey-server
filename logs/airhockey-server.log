@@ -14,3 +14,13 @@
 2026-02-22T21:38:07.496+01:00  INFO 98918 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
 2026-02-22T21:38:07.496+01:00  INFO 98918 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@1536ea40]]
 2026-02-22T21:38:07.497+01:00  INFO 98918 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.
+2026-02-22T21:53:10.024+01:00  INFO 1831 --- [main] n.b.a.AirHockeyServerApplicationTests    : Starting AirHockeyServerApplicationTests using Java 25.0.1 with PID 1831 (started by robinborjesson in /Users/robinborjesson/dev/java/air-hockey-server)
+2026-02-22T21:53:10.025+01:00  INFO 1831 --- [main] n.b.a.AirHockeyServerApplicationTests    : No active profile set, falling back to 1 default profile: "default"
+2026-02-22T21:53:10.571+01:00  INFO 1831 --- [main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-02-22T21:53:10.572+01:00  INFO 1831 --- [main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@5e05a706]]
+2026-02-22T21:53:10.572+01:00  INFO 1831 --- [main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-02-22T21:53:10.575+01:00  INFO 1831 --- [main] n.b.a.AirHockeyServerApplicationTests    : Started AirHockeyServerApplicationTests in 0.685 seconds (process running for 1.952)
+2026-02-22T21:53:10.593+01:00  WARN 1831 --- [main] n.b.a.service.GameServiceImpl            : tried to remove a player from store with non-existent gameId: unknown
+2026-02-22T21:53:10.598+01:00  INFO 1831 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopping...
+2026-02-22T21:53:10.598+01:00  INFO 1831 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@5e05a706]]
+2026-02-22T21:53:10.598+01:00  INFO 1831 --- [SpringApplicationShutdownHook] o.s.m.s.b.SimpleBrokerMessageHandler     : Stopped.

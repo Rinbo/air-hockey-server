@@ -1,6 +1,5 @@
 package nu.borjessons.airhockeyserver.controller;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -67,18 +66,14 @@ public class UserController {
 
   @GetMapping(value = "/{name}/validate", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<Response> validateName(@PathVariable String name) {
-    List<String> names = userStore.getAll().stream().map(Username::getTrimmed).map(String::toLowerCase).toList();
-    if (names.contains(new Username(name).getTrimmed().toLowerCase())) {
-      return ResponseEntity.status(HttpStatus.CONFLICT).body(new Response("Already taken"));
-    }
+    String trimmedLower = new Username(name).getTrimmed().toLowerCase();
+    boolean taken = userStore.getAll().stream()
+        .map(Username::getTrimmed)
+        .anyMatch(existing -> existing.equalsIgnoreCase(trimmedLower));
 
-    return ResponseEntity.ok(new Response(name));
-  }
-
-  private Username validateUsername(String name, int suffix) {
-    Username username = suffix == 0 ? new Username(name) : new Username(name + "-" + suffix);
-    if (!userStore.contains(username)) return username;
-    return validateUsername(name, suffix + 1);
+    return taken
+        ? ResponseEntity.status(HttpStatus.CONFLICT).body(new Response("Already taken"))
+        : ResponseEntity.ok(new Response(name));
   }
 
   public record Response(String data) {

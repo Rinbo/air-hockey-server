@@ -46,12 +46,16 @@ public class GameStoreConnector {
   }
 
   private static void updateGamesWon(Collection<Player> players) {
-    Optional<Player> player1Optional = players.stream().filter(player -> player.getAgency() == Agency.PLAYER_1).findFirst();
-    Optional<Player> player2Optional = players.stream().filter(player -> player.getAgency() == Agency.PLAYER_2).findFirst();
+    Optional<Player> player1Optional = players.stream().filter(player -> player.getAgency() == Agency.PLAYER_1)
+        .findFirst();
+    Optional<Player> player2Optional = players.stream().filter(player -> player.getAgency() == Agency.PLAYER_2)
+        .findFirst();
 
     player1Optional.ifPresent(player1 -> player2Optional.ifPresent(player2 -> {
-      if (player1.getScore() > player2.getScore()) player1.incrementGamesWon();
-      if (player2.getScore() > player1.getScore()) player2.incrementGamesWon();
+      if (player1.getScore() > player2.getScore())
+        player1.incrementGamesWon();
+      if (player2.getScore() > player1.getScore())
+        player2.incrementGamesWon();
     }));
   }
 
@@ -65,7 +69,8 @@ public class GameStoreConnector {
     Collection<Player> players = gameStore.getPlayers();
 
     messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.SCORE_SCREEN);
-    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(printResult(players)));
+    messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId),
+        TopicUtils.createBotMessage(printResult(players)));
 
     updateGamesWon(players);
 

@@ -47,11 +47,8 @@ public class GameServiceImpl implements GameService {
 
   @Override
   public GameState getGameState(GameId gameId) {
-    if (gameStoreMap.containsKey(gameId)) {
-      return gameStoreMap.get(gameId).getGameState();
-    }
-
-    return GameState.LOBBY;
+    GameStore gameStore = gameStoreMap.get(gameId);
+    return gameStore != null ? gameStore.getGameState() : GameState.LOBBY;
   }
 
   @Override
@@ -66,11 +63,8 @@ public class GameServiceImpl implements GameService {
 
   @Override
   public Optional<Player> getPlayer(GameId gameId, Username username) {
-    if (gameStoreMap.containsKey(gameId)) {
-      return gameStoreMap.get(gameId).getPlayer(username);
-    }
-
-    return Optional.empty();
+    GameStore gameStore = gameStoreMap.get(gameId);
+    return gameStore != null ? gameStore.getPlayer(username) : Optional.empty();
   }
 
   @Override
@@ -109,7 +103,8 @@ public class GameServiceImpl implements GameService {
         Username username = player.getUsername();
 
         messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.LOBBY);
-        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId), TopicUtils.createBotMessage(AppUtils.format("%s left", username.getTrimmed())));
+        messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId),
+            TopicUtils.createBotMessage(AppUtils.format("%s left", username.getTrimmed())));
 
         removeUser(gameId, username);
         getGameStore(gameId).ifPresent(this::transitionIfRunning);
