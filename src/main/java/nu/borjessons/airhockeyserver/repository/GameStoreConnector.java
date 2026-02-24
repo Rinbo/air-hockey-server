@@ -13,22 +13,22 @@ import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.model.Notification;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.utils.TopicUtils;
+import nu.borjessons.airhockeyserver.websocket.GameWebSocketHandler;
 
 public class GameStoreConnector {
   private final GameStore gameStore;
+  private final GameWebSocketHandler gameWebSocketHandler;
   private final SimpMessagingTemplate messagingTemplate;
-  private final String playerOneTopic;
-  private final String playerTwoTopic;
 
-  public GameStoreConnector(GameStore gameStore, SimpMessagingTemplate messagingTemplate) {
+  public GameStoreConnector(GameStore gameStore, SimpMessagingTemplate messagingTemplate,
+      GameWebSocketHandler gameWebSocketHandler) {
     Objects.requireNonNull(gameStore, "gameStore must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
+    Objects.requireNonNull(gameWebSocketHandler, "gameWebSocketHandler must not be null");
 
-    GameId gameId = gameStore.getGameId();
     this.gameStore = gameStore;
     this.messagingTemplate = messagingTemplate;
-    this.playerOneTopic = String.format("/topic/game/%s/board-state/player-1", gameId);
-    this.playerTwoTopic = String.format("/topic/game/%s/board-state/player-2", gameId);
+    this.gameWebSocketHandler = gameWebSocketHandler;
   }
 
   private static String printResult(Collection<Player> players) {
@@ -59,9 +59,13 @@ public class GameStoreConnector {
     }));
   }
 
+  /**
+   * Broadcasts board state via raw binary WebSocket for minimal overhead.
+   */
   public void broadcast(BroadcastState playerOneState, BroadcastState playerTwoState) {
-    messagingTemplate.convertAndSend(playerOneTopic, playerOneState);
-    messagingTemplate.convertAndSend(playerTwoTopic, playerTwoState);
+    GameId gameId = gameStore.getGameId();
+    gameWebSocketHandler.sendBoardState(gameId, Agency.PLAYER_1, playerOneState);
+    gameWebSocketHandler.sendBoardState(gameId, Agency.PLAYER_2, playerTwoState);
   }
 
   public void gameComplete() {

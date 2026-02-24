@@ -8,15 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.module.SimpleModule;
-
-import nu.borjessons.airhockeyserver.controller.dezerializer.GameIdDeserializer;
-import nu.borjessons.airhockeyserver.controller.dezerializer.UsernameDeserializer;
-import nu.borjessons.airhockeyserver.controller.serializer.GameIdSerializer;
-import nu.borjessons.airhockeyserver.controller.serializer.UsernameSerializer;
 import nu.borjessons.airhockeyserver.model.GameId;
-import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.repository.GameStore;
 import nu.borjessons.airhockeyserver.repository.UserStore;
 import nu.borjessons.airhockeyserver.service.api.GameService;
@@ -28,19 +20,6 @@ public class AppConfig {
   @Bean
   Map<GameId, GameStore> createGameStoreMap() {
     return new ConcurrentHashMap<>();
-  }
-
-  @Bean
-  ObjectMapper createObjectMapper() {
-    SimpleModule simpleModule = new SimpleModule();
-
-    simpleModule.addSerializer(GameId.class, new GameIdSerializer());
-    simpleModule.addSerializer(Username.class, new UsernameSerializer());
-
-    simpleModule.addDeserializer(GameId.class, new GameIdDeserializer());
-    simpleModule.addDeserializer(Username.class, new UsernameDeserializer());
-
-    return tools.jackson.databind.json.JsonMapper.builder().addModule(simpleModule).build();
   }
 
   @Bean

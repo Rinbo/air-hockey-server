@@ -22,6 +22,8 @@ import nu.borjessons.airhockeyserver.model.GameState;
 import nu.borjessons.airhockeyserver.model.Player;
 import nu.borjessons.airhockeyserver.model.Username;
 
+import nu.borjessons.airhockeyserver.websocket.GameWebSocketHandler;
+
 public class GameStore {
   private static final Logger logger = LoggerFactory.getLogger(GameStore.class);
 
@@ -85,9 +87,9 @@ public class GameStore {
     players.remove(player);
   }
 
-  public void startGame(SimpMessagingTemplate messagingTemplate) {
+  public void startGame(SimpMessagingTemplate messagingTemplate, GameWebSocketHandler gameWebSocketHandler) {
     transition(GameState.GAME_RUNNING);
-    gameEngine.startGame(gameId, new GameStoreConnector(this, messagingTemplate));
+    gameEngine.startGame(gameId, new GameStoreConnector(this, messagingTemplate, gameWebSocketHandler));
   }
 
   public void terminate() {

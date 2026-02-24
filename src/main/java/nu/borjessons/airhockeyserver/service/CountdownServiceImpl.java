@@ -18,19 +18,24 @@ import nu.borjessons.airhockeyserver.model.Username;
 import nu.borjessons.airhockeyserver.service.api.CountdownService;
 import nu.borjessons.airhockeyserver.service.api.GameService;
 import nu.borjessons.airhockeyserver.utils.TopicUtils;
+import nu.borjessons.airhockeyserver.websocket.GameWebSocketHandler;
 
 @Service
 public class CountdownServiceImpl implements CountdownService {
   private final Map<GameId, Timer> countdownMap;
   private final GameService gameService;
+  private final GameWebSocketHandler gameWebSocketHandler;
   private final SimpMessagingTemplate messagingTemplate;
 
-  public CountdownServiceImpl(GameService gameService, SimpMessagingTemplate messagingTemplate) {
+  public CountdownServiceImpl(GameService gameService, SimpMessagingTemplate messagingTemplate,
+      GameWebSocketHandler gameWebSocketHandler) {
     Objects.requireNonNull(gameService, "gameService must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
+    Objects.requireNonNull(gameWebSocketHandler, "gameWebSocketHandler must not be null");
 
     this.countdownMap = new ConcurrentHashMap<>();
     this.gameService = gameService;
+    this.gameWebSocketHandler = gameWebSocketHandler;
     this.messagingTemplate = messagingTemplate;
   }
 
@@ -71,7 +76,8 @@ public class CountdownServiceImpl implements CountdownService {
         messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId),
             new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--));
         if (count < 0) {
-          gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.startGame(messagingTemplate));
+          gameService.getGameStore(gameId)
+              .ifPresent(gameStore -> gameStore.startGame(messagingTemplate, gameWebSocketHandler));
           messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.GAME_RUNNING);
           timer.cancel();
           countdownMap.remove(gameId);
