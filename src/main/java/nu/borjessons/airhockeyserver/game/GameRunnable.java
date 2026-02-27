@@ -138,7 +138,7 @@ class GameRunnable implements Runnable {
     gameStoreConnector.broadcast(p1State, p2State);
   }
 
-  private Collision detectCollision() {
+  Collision detectCollision() {
     Position puckPosition = boardState.puck().getPosition();
 
     if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION))
@@ -163,7 +163,7 @@ class GameRunnable implements Runnable {
     return Collision.NO_COLLISION;
   }
 
-  private void handleCollision(Collision collision) {
+  void handleCollision(Collision collision) {
     switch (collision) {
       case LEFT_WALL -> onLeftWallCollision();
       case RIGHT_WALL -> onRightWallCollision();
