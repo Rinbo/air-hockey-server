@@ -25,7 +25,7 @@ public class GameEngine {
   }
 
   public void startGame(GameId gameId, GameStoreConnector gameStoreConnector) {
-    if (gameThread != null)
+    if (gameThread != null && gameThread.isAlive())
       throw new IllegalStateException("Game already running");
 
     gameThread = Thread.ofVirtual()
@@ -34,8 +34,10 @@ public class GameEngine {
   }
 
   public void terminate() {
-    if (gameThread != null)
+    if (gameThread != null) {
       gameThread.interrupt();
+      gameThread = null;
+    }
   }
 
   public void updateHandle(Function<BoardState, Handle> function, Position position) {

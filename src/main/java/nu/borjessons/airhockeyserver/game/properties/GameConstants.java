@@ -14,7 +14,7 @@ public final class GameConstants {
   public static final double BOARD_ASPECT_RATIO = 0.625;
   public static final int FRAME_RATE = 50;
   public static final double FRICTION_MODIFIER = 20_000;
-  public static final Duration GAME_DURATION = Duration.ofSeconds(120);
+  public static final Duration GAME_DURATION = Duration.ofSeconds(20);
   public static final double GOAL_WIDTH = 0.15 - 0.03;
   public static final Radius HANDLE_RADIUS = new Radius(0.09, 0.09 * BOARD_ASPECT_RATIO);
   public static final Position HANDLE_START_P1 = new Position(0.5, 0.8);
