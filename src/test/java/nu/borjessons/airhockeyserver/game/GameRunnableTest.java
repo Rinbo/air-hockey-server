@@ -13,7 +13,7 @@ class GameRunnableTest {
   void testDelay() {
     GameStoreConnector gameStoreConnector = Mockito.mock(GameStoreConnector.class);
 
-    Thread thread = new Thread(new GameRunnable(TestUtils.BOARD_STATE, TestUtils.GAME_ID, gameStoreConnector));
+    Thread thread = new Thread(new GameRunnable(TestUtils.BOARD_STATE, TestUtils.GAME_ID, gameStoreConnector, false));
     thread.start();
 
     Mockito.verify(gameStoreConnector, Mockito.timeout(500).atLeast(10))

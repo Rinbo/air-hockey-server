@@ -51,8 +51,9 @@ public class CountdownServiceImpl implements CountdownService {
   @Override
   public void handleBothPlayersReady(GameId gameId, Username username) {
     Collection<Player> players = gameService.getPlayers(gameId);
+    boolean allReady = players.size() == 2 && players.stream().allMatch(Player::isReady);
 
-    if (players.size() == 2 && players.stream().allMatch(Player::isReady) && !countdownMap.containsKey(gameId)) {
+    if (allReady && !countdownMap.containsKey(gameId)) {
       Timer timer = new Timer(gameId.toString());
       TimerTask timerTask = createCountdownTask(gameId, timer);
       timer.schedule(timerTask, 0, 1000);

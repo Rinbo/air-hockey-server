@@ -61,6 +61,20 @@ public class GameController {
     return getGameList();
   }
 
+  @MessageMapping("/game/{id}/add-ai")
+  public void handleAddAi(@DestinationVariable String id, SimpMessageHeaderAccessor header) {
+    AuthRecord authRecord = gameValidator.validateUser(header, id);
+    GameId gameId = authRecord.gameId();
+
+    gameService.getGameStore(gameId).ifPresent(gameStore -> {
+      gameStore.addAiPlayer();
+      messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), gameService.getPlayers(gameId));
+      messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId),
+          TopicUtils.createBotMessage("AI Bot joined"));
+      messagingTemplate.convertAndSend(TopicUtils.GAMES_TOPIC, getGameList());
+    });
+  }
+
   @MessageMapping("/game/{id}/chat")
   public void handleChat(@DestinationVariable String id, @Payload UserMessage userMessage,
       SimpMessageHeaderAccessor header) {

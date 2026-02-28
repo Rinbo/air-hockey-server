@@ -4,8 +4,9 @@
 
 A server-authoritative game engine built with **Spring Boot 4** and **Java 25**
 that handles physics simulation, collision detection, player matchmaking, and
-state synchronization at 50 Hz over a custom binary WebSocket protocol. Designed
-for commercial deployment with low-latency gameplay as the primary objective.
+state synchronization at 50 Hz over a custom binary WebSocket protocol. Supports
+both **two-player online** and **single-player vs AI** modes. Designed for
+commercial deployment with low-latency gameplay as the primary objective.
 
 > **Frontend repository:**
 > [borjessons-air-hockey](https://github.com/Rinbo/borjessons-air-hockey)
@@ -54,6 +55,7 @@ The application is structured around three communication channels:
 | **Binary WebSocket Protocol**    | Custom `Float64`-based binary wire format (40 bytes per broadcast) for minimal overhead                   |
 | **Collision Detection**          | Circle-circle (puck ↔ handle) and circle-wall collision with ricochet physics and vector-based reflection |
 | **Goal Detection**               | Dynamic goal-zone collision with score tracking and automatic puck reset                                  |
+| **Single-Player AI**             | Server-side AI opponent with puck-tracking, defensive positioning, and lerp-smoothed movement             |
 | **Game Rooms**                   | Create, join, and manage game rooms with player readiness checks                                          |
 | **Lobby Chat**                   | STOMP-based real-time chat within game rooms                                                              |
 | **State Machine**                | Full game lifecycle: `LOBBY → GAME_RUNNING → SCORE_SCREEN`, with disconnect handling                      |
@@ -171,6 +173,7 @@ src/main/java/nu/borjessons/airhockeyserver/
 ├── event/
 │   └── WebsocketEventListener.java     #   Connection/disconnection events
 ├── game/                               # Core game engine
+│   ├── AiPlayer.java                   #   Server-side AI opponent logic
 │   ├── BoardState.java                 #   Mutable game state record
 │   ├── BroadcastState.java             #   Serializable output state
 │   ├── GameEngine.java                 #   Engine lifecycle management
@@ -261,9 +264,10 @@ to prevent frame drift:
 while (!interrupted && remainingSeconds > 0) {
     frameStart = nanoTime()
 
-    puck.onTick()          // apply velocity + friction
-    detectCollision()      // walls, handles, goals
-    broadcast(state)       // send to both players via binary WS
+    if (aiMode) aiPlayer.tick()  // compute AI handle position
+    puck.onTick()                // apply velocity + friction
+    detectCollision()            // walls, handles, goals
+    broadcast(state)             // send to both players via binary WS
 
     sleep(FRAME_DURATION - elapsed)
 }
@@ -302,6 +306,7 @@ All values use **little-endian** byte order.
 Used for lower-frequency operations:
 
 - **Game creation/joining** via `/app/game/{id}/connect`
+- **Add AI opponent** via `/app/game/{id}/add-ai`
 - **Chat** via `/app/game/{id}/chat`
 - **Ready toggle** via `/app/game/{id}/toggle-ready`
 - **Player disconnection** via `/app/game/{id}/disconnect`
@@ -347,17 +352,18 @@ The project includes unit and integration tests covering the core game logic:
 
 ### Test Coverage
 
-| Module            | Tests                                 |
-| ----------------- | ------------------------------------- |
-| `GameRunnable`    | Game loop lifecycle, tick simulation  |
-| `Puck`            | Speed, friction, collision math       |
-| `Vector`          | Geometric operations                  |
-| `Player`          | Model validation                      |
-| `Username`        | Input sanitization                    |
-| `GameStore`       | State management                      |
-| `GameService`     | Service orchestration                 |
-| `UserController`  | REST endpoint integration             |
-| `Canvas` (visual) | JavaFX-based visual physics debugging |
+| Module            | Tests                                               |
+| ----------------- | --------------------------------------------------- |
+| `AiPlayer`        | Boundary constraints, puck tracking, lerp smoothing |
+| `GameRunnable`    | Game loop lifecycle, tick simulation                |
+| `Puck`            | Speed, friction, collision math                     |
+| `Vector`          | Geometric operations                                |
+| `Player`          | Model validation                                    |
+| `Username`        | Input sanitization                                  |
+| `GameStore`       | State management                                    |
+| `GameService`     | Service orchestration                               |
+| `UserController`  | REST endpoint integration                           |
+| `Canvas` (visual) | JavaFX-based visual physics debugging               |
 
 ---
 

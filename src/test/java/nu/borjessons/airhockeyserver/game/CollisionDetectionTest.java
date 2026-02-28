@@ -37,7 +37,7 @@ class CollisionDetectionTest {
         Handle p1 = Handle.create(handleOnePos);
         Handle p2 = Handle.create(handleTwoPos);
         BoardState state = new BoardState(puck, p1, p2);
-        return new GameRunnable(state, new GameId("test"), connector);
+        return new GameRunnable(state, new GameId("test"), connector, false);
     }
 
     @BeforeEach

@@ -22,6 +22,7 @@ class GameRunnable implements Runnable {
   private static final long GAME_DURATION_NS = GameConstants.GAME_DURATION.toNanos();
   private static final long PUCK_RESET_DURATION_NS = GameConstants.PUCK_RESET_DURATION.toNanos();
   private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
+  private final boolean aiMode;
   private final BoardState boardState;
   private final BroadcastState p1State = new BroadcastState();
   private final BroadcastState p2State = new BroadcastState();
@@ -33,11 +34,12 @@ class GameRunnable implements Runnable {
   private long puckResetRemainingNs;
   private Position puckResetTarget;
 
-  public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector) {
+  public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector, boolean aiMode) {
     Objects.requireNonNull(boardState, "boardState must not be null");
     Objects.requireNonNull(gameId, "gameId must not be null");
     Objects.requireNonNull(gameStoreConnector, "gameStoreController must not be null");
 
+    this.aiMode = aiMode;
     this.boardState = boardState;
     this.gameStoreConnector = gameStoreConnector;
     this.gameId = gameId;
@@ -115,6 +117,10 @@ class GameRunnable implements Runnable {
           boardState.puck().setPosition(puckResetTarget);
           puckResetTarget = null;
         }
+      }
+
+      if (aiMode) {
+        AiPlayer.tick(boardState);
       }
 
       boardState.puck().onTick();

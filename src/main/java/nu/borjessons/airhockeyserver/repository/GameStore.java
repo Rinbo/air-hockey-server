@@ -27,10 +27,13 @@ import nu.borjessons.airhockeyserver.websocket.GameWebSocketHandler;
 public class GameStore {
   private static final Logger logger = LoggerFactory.getLogger(GameStore.class);
 
+  private static final Username AI_USERNAME = new Username("AI Bot");
+
   private final GameEngine gameEngine;
   private final GameId gameId;
   private final AtomicReference<GameState> gameStateReference;
   private final Set<Player> players;
+  private boolean aiMode;
 
   public GameStore(GameId gameId) {
     this.gameId = gameId;
@@ -58,6 +61,17 @@ public class GameStore {
     };
   }
 
+  public synchronized void addAiPlayer() {
+    if (players.size() != 1) {
+      throw new IllegalStateException("Can only add AI when exactly one human player is present");
+    }
+    Player aiPlayer = new Player(Agency.PLAYER_2, AI_USERNAME);
+    players.add(aiPlayer);
+    aiPlayer.toggleReady();
+    this.aiMode = true;
+    gameEngine.setAiMode(true);
+  }
+
   public Optional<Username> getGameCreator() {
     return players.stream().filter(player -> player.getAgency() == Agency.PLAYER_1).map(Player::getUsername)
         .findFirst();
@@ -79,8 +93,12 @@ public class GameStore {
     return List.copyOf(players);
   }
 
+  public boolean isAiMode() {
+    return aiMode;
+  }
+
   public boolean isJoinable() {
-    return players.size() != 2;
+    return !aiMode && players.size() != 2;
   }
 
   public synchronized void removePlayer(Player player) {
@@ -107,6 +125,13 @@ public class GameStore {
 
   public synchronized void togglePlayerReadiness(Player player) {
     players.stream().filter(player::equals).findFirst().ifPresent(Player::toggleReady);
+
+    // In AI mode, ensure the bot is always ready
+    if (aiMode) {
+      players.stream()
+          .filter(p -> p.getAgency() == Agency.PLAYER_2 && !p.isReady())
+          .forEach(Player::toggleReady);
+    }
   }
 
   public void transition(GameState newGameState) {

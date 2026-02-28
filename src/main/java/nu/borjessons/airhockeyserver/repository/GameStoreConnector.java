@@ -79,6 +79,14 @@ public class GameStoreConnector {
     updateGamesWon(players);
 
     players.forEach(Player::toggleReady);
+
+    // Re-ready the AI so the next game starts when the human readies up
+    if (gameStore.isAiMode()) {
+      players.stream()
+          .filter(p -> p.getAgency() == Agency.PLAYER_2)
+          .forEach(Player::toggleReady);
+    }
+
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), players);
 
     players.forEach(Player::resetScore);

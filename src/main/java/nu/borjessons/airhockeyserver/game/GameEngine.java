@@ -9,6 +9,7 @@ import nu.borjessons.airhockeyserver.model.GameId;
 import nu.borjessons.airhockeyserver.repository.GameStoreConnector;
 
 public class GameEngine {
+  private boolean aiMode;
   private final BoardState boardState;
   private volatile Thread gameThread;
 
@@ -24,13 +25,17 @@ public class GameEngine {
     return new Position(1 - position.x(), 1 - position.y());
   }
 
+  public void setAiMode(boolean aiMode) {
+    this.aiMode = aiMode;
+  }
+
   public void startGame(GameId gameId, GameStoreConnector gameStoreConnector) {
     if (gameThread != null && gameThread.isAlive())
       throw new IllegalStateException("Game already running");
 
     gameThread = Thread.ofVirtual()
         .name("game-" + gameId)
-        .start(new GameRunnable(boardState, gameId, gameStoreConnector));
+        .start(new GameRunnable(boardState, gameId, gameStoreConnector, aiMode));
   }
 
   public void terminate() {
