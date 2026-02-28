@@ -33,6 +33,10 @@ public final class Handle extends Circle {
         return new Handle(position, radius);
     }
 
+    public Position getPreviousPosition() {
+        return new Position(previousX, previousY);
+    }
+
     public Speed getSpeed() {
         return new Speed(speedX, speedY);
     }

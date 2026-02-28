@@ -9,6 +9,8 @@ import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 import nu.borjessons.airhockeyserver.game.objects.Handle;
 import nu.borjessons.airhockeyserver.game.objects.Puck;
+import nu.borjessons.airhockeyserver.game.properties.GameConstants;
+import nu.borjessons.airhockeyserver.game.properties.PhysicsSpace;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.game.properties.Radius;
 import nu.borjessons.airhockeyserver.game.properties.Vector;
@@ -47,6 +49,41 @@ public class CanvasTest extends Application {
         return new Line(w, h, w + w(vector.x()), h + h(vector.y()));
     }
 
+    /**
+     * Separates a puck from a handle using the same physics-space logic as
+     * GameRunnable — pushes the puck along the collision normal until the
+     * surfaces no longer overlap.
+     */
+    private static void separatePuckFromHandle(Puck puck, Handle handle) {
+        double pxP = puck.getPosition().x();
+        double pyP = PhysicsSpace.toPhysicalY(puck.getPosition().y());
+        double hxP = handle.getPosition().x();
+        double hyP = PhysicsSpace.toPhysicalY(handle.getPosition().y());
+
+        double nx = pxP - hxP;
+        double ny = pyP - hyP;
+        double dist = Math.sqrt(nx * nx + ny * ny);
+
+        if (dist < 1e-12) {
+            nx = 0;
+            ny = -1;
+            dist = 1;
+        }
+
+        nx /= dist;
+        ny /= dist;
+
+        double minDist = PhysicsSpace.toPhysicalY(GameConstants.PUCK_HANDLE_MIN_DISTANCE);
+        double overlap = minDist - dist;
+
+        if (overlap > 0) {
+            pxP += nx * (overlap + 1e-6);
+            pyP += ny * (overlap + 1e-6);
+        }
+
+        puck.setPosition(new Position(pxP, PhysicsSpace.toNormalizedY(pyP)));
+    }
+
     @Override
     public void start(Stage stage) {
         Handle handle = Handle.create(TestUtils.HANDLE_POS, new Radius(0.1, 0.1 * TestUtils.BOARD_ASPECT_RATIO));
@@ -58,30 +95,22 @@ public class CanvasTest extends Application {
         Puck puckQ4 = Puck.create(TestUtils.createPosition(85, 75), puckRadius);
 
         Vector vector1 = Vector.from(handle.getPosition(), puckQ1.getPosition());
-        Vector vector2 = Vector.from(handle.getPosition(), puckQ2.getPosition());
-        Vector vector3 = Vector.from(handle.getPosition(), puckQ3.getPosition());
-        Vector vector4 = Vector.from(handle.getPosition(), puckQ4.getPosition());
-
-        double angle1 = vector1.angle(TestUtils.BOARD_ASPECT_RATIO);
-        double angle2 = vector2.angle(TestUtils.BOARD_ASPECT_RATIO);
-        double angle3 = vector3.angle(TestUtils.BOARD_ASPECT_RATIO);
-        double angle4 = vector4.angle(TestUtils.BOARD_ASPECT_RATIO);
 
         Circle puckStartQ1 = createCircle(Puck.copyOf(puckQ1), Color.BLUE);
         Circle puckStartQ2 = createCircle(Puck.copyOf(puckQ2), Color.BLUE);
         Circle puckStartQ3 = createCircle(Puck.copyOf(puckQ3), Color.BLUE);
         Circle puckStartQ4 = createCircle(Puck.copyOf(puckQ4), Color.BLUE);
 
-        Position pEdgePos = puckQ1.getRadiusEdgePosition(angle1);
-        Position hEdgePos = handle.getRadiusEdgePosition(angle1 + Math.PI);
+        Position pEdgePos = puckQ1.getRadiusEdgePosition(vector1.angle(TestUtils.BOARD_ASPECT_RATIO));
+        Position hEdgePos = handle.getRadiusEdgePosition(vector1.angle(TestUtils.BOARD_ASPECT_RATIO) + Math.PI);
         Circle pEdge = new Circle(w(pEdgePos.x()), h(pEdgePos.y()), 2);
         Circle hEdge = new Circle(w(hEdgePos.x()), h(hEdgePos.y()), 2);
         Line line = createLine(vector1, puckQ1.getPosition());
 
-        puckQ1.offsetCollisionWith(handle, angle1);
-        puckQ2.offsetCollisionWith(handle, angle2);
-        puckQ3.offsetCollisionWith(handle, angle3);
-        puckQ4.offsetCollisionWith(handle, angle4);
+        separatePuckFromHandle(puckQ1, handle);
+        separatePuckFromHandle(puckQ2, handle);
+        separatePuckFromHandle(puckQ3, handle);
+        separatePuckFromHandle(puckQ4, handle);
 
         Pane pane = new Pane(
                 puckStartQ1,
@@ -103,7 +132,5 @@ public class CanvasTest extends Application {
         stage.setScene(scene);
         stage.setTitle("Canvas test");
         stage.show();
-
-
     }
 }

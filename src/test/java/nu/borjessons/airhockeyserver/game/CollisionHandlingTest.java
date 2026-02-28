@@ -46,7 +46,7 @@ class CollisionHandlingTest {
     // ─── Wall Bounce Tests ────────────────────────────────────────
 
     @Test
-    @DisplayName("Left wall collision negates X speed and clamps position")
+    @DisplayName("Left wall collision bounces with restitution and clamps position")
     void leftWallBounce() {
         Puck puck = boardState.puck();
         puck.setSpeedXY(-0.01, 0.005);
@@ -57,10 +57,12 @@ class CollisionHandlingTest {
         assertEquals(GameConstants.PUCK_RADIUS.x(), puck.getPosition().x(),
                 "Puck x should be clamped to left wall + radius");
         assertTrue(puck.getSpeedX() > 0, "X speed should be positive after left wall bounce");
+        assertEquals(0.01 * GameConstants.WALL_RESTITUTION, puck.getSpeedX(), 1e-10,
+                "X speed should be reduced by wall restitution");
     }
 
     @Test
-    @DisplayName("Right wall collision negates X speed and clamps position")
+    @DisplayName("Right wall collision bounces with restitution and clamps position")
     void rightWallBounce() {
         Puck puck = boardState.puck();
         puck.setSpeedXY(0.01, 0.005);
@@ -71,10 +73,12 @@ class CollisionHandlingTest {
         assertEquals(1.0 - GameConstants.PUCK_RADIUS.x(), puck.getPosition().x(),
                 "Puck x should be clamped to right wall - radius");
         assertTrue(puck.getSpeedX() < 0, "X speed should be negative after right wall bounce");
+        assertEquals(-0.01 * GameConstants.WALL_RESTITUTION, puck.getSpeedX(), 1e-10,
+                "X speed should be reduced by wall restitution");
     }
 
     @Test
-    @DisplayName("Top wall collision negates Y speed and clamps position")
+    @DisplayName("Top wall collision bounces with restitution and clamps position")
     void topWallBounce() {
         Puck puck = boardState.puck();
         puck.setSpeedXY(0.005, -0.01);
@@ -85,10 +89,12 @@ class CollisionHandlingTest {
         assertEquals(GameConstants.PUCK_RADIUS.y(), puck.getPosition().y(),
                 "Puck y should be clamped to top wall + radius");
         assertTrue(puck.getSpeedY() > 0, "Y speed should be positive after top wall bounce");
+        assertEquals(0.01 * GameConstants.WALL_RESTITUTION, puck.getSpeedY(), 1e-10,
+                "Y speed should be reduced by wall restitution");
     }
 
     @Test
-    @DisplayName("Bottom wall collision negates Y speed and clamps position")
+    @DisplayName("Bottom wall collision bounces with restitution and clamps position")
     void bottomWallBounce() {
         Puck puck = boardState.puck();
         puck.setSpeedXY(0.005, 0.01);
@@ -99,10 +105,12 @@ class CollisionHandlingTest {
         assertEquals(1.0 - GameConstants.PUCK_RADIUS.y(), puck.getPosition().y(),
                 "Puck y should be clamped to bottom wall - radius");
         assertTrue(puck.getSpeedY() < 0, "Y speed should be negative after bottom wall bounce");
+        assertEquals(-0.01 * GameConstants.WALL_RESTITUTION, puck.getSpeedY(), 1e-10,
+                "Y speed should be reduced by wall restitution");
     }
 
     @Test
-    @DisplayName("Speed direction is preserved on the non-bounced axis")
+    @DisplayName("Non-bounced axis speed is preserved (not affected by restitution)")
     void speedPreservedOnOtherAxis() {
         Puck puck = boardState.puck();
         puck.setSpeedXY(-0.01, 0.005);

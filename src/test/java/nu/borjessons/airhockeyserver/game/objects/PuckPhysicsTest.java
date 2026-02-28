@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import nu.borjessons.airhockeyserver.game.properties.GameConstants;
 import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.game.properties.Speed;
-import nu.borjessons.airhockeyserver.game.properties.Vector;
 
 /**
  * Tests the physics behaviour of the Puck class.
@@ -26,38 +25,62 @@ class PuckPhysicsTest {
     // ─── Speed Capping ────────────────────────────────────────────
 
     @Nested
-    @DisplayName("Speed capping")
+    @DisplayName("Speed capping (magnitude-based)")
     class SpeedCapping {
 
         @Test
-        @DisplayName("setSpeed caps x and y at MAX_SPEED_CONSTITUENT")
-        void setSpeedCaps() {
+        @DisplayName("setSpeed clamps by magnitude, preserving direction")
+        void setSpeedClampsByMagnitude() {
             Puck puck = Puck.create(new Position(0.5, 0.5));
             puck.setSpeed(new Speed(999, 999));
 
-            assertEquals(GameConstants.MAX_SPEED_CONSTITUENT, puck.getSpeedX(), DELTA);
-            assertEquals(GameConstants.MAX_SPEED_CONSTITUENT, puck.getSpeedY(), DELTA);
+            double mag = Math.sqrt(puck.getSpeedX() * puck.getSpeedX() + puck.getSpeedY() * puck.getSpeedY());
+            assertEquals(GameConstants.MAX_SPEED, mag, DELTA, "Magnitude should equal MAX_SPEED");
+            // Equal input → equal output components
+            assertEquals(puck.getSpeedX(), puck.getSpeedY(), DELTA);
         }
 
         @Test
-        @DisplayName("setSpeedXY caps at MAX_SPEED_CONSTITUENT")
-        void setSpeedXYCaps() {
+        @DisplayName("setSpeedXY clamps by magnitude, preserving direction")
+        void setSpeedXYClampsByMagnitude() {
             Puck puck = Puck.create(new Position(0.5, 0.5));
             puck.setSpeedXY(999, 999);
 
-            assertEquals(GameConstants.MAX_SPEED_CONSTITUENT, puck.getSpeedX(), DELTA);
-            assertEquals(GameConstants.MAX_SPEED_CONSTITUENT, puck.getSpeedY(), DELTA);
+            double mag = Math.sqrt(puck.getSpeedX() * puck.getSpeedX() + puck.getSpeedY() * puck.getSpeedY());
+            assertEquals(GameConstants.MAX_SPEED, mag, DELTA, "Magnitude should equal MAX_SPEED");
+        }
+
+        @Test
+        @DisplayName("Negative speeds are clamped by magnitude symmetrically")
+        void negativeSpeedsClamped() {
+            Puck puck = Puck.create(new Position(0.5, 0.5));
+            puck.setSpeedXY(-999, -999);
+
+            double mag = Math.sqrt(puck.getSpeedX() * puck.getSpeedX() + puck.getSpeedY() * puck.getSpeedY());
+            assertEquals(GameConstants.MAX_SPEED, mag, DELTA, "Magnitude should equal MAX_SPEED for negative speeds");
+            assertTrue(puck.getSpeedX() < 0, "X should remain negative");
+            assertTrue(puck.getSpeedY() < 0, "Y should remain negative");
         }
 
         @Test
         @DisplayName("Speed below cap is not modified")
         void speedBelowCapUnchanged() {
             Puck puck = Puck.create(new Position(0.5, 0.5));
-            double low = GameConstants.MAX_SPEED_CONSTITUENT / 2;
+            double low = GameConstants.MAX_SPEED / 4;
             puck.setSpeedXY(low, low);
 
             assertEquals(low, puck.getSpeedX(), DELTA);
             assertEquals(low, puck.getSpeedY(), DELTA);
+        }
+
+        @Test
+        @DisplayName("Direction is preserved when clamping")
+        void directionPreserved() {
+            Puck puck = Puck.create(new Position(0.5, 0.5));
+            puck.setSpeedXY(999, 0);
+
+            assertEquals(GameConstants.MAX_SPEED, puck.getSpeedX(), DELTA, "Pure X speed should clamp to MAX_SPEED");
+            assertEquals(0, puck.getSpeedY(), DELTA, "Y should remain 0");
         }
     }
 
@@ -96,10 +119,10 @@ class PuckPhysicsTest {
         }
     }
 
-    // ─── Friction ─────────────────────────────────────────────────
+    // ─── Friction (Constant Damping) ────────────────────────────────
 
     @Nested
-    @DisplayName("Friction")
+    @DisplayName("Friction (constant damping)")
     class Friction {
 
         @Test
@@ -110,7 +133,6 @@ class PuckPhysicsTest {
 
             double initialSpeedX = puck.getSpeedX();
 
-            // Run several ticks
             for (int i = 0; i < 100; i++) {
                 puck.onTick();
             }
@@ -120,118 +142,48 @@ class PuckPhysicsTest {
         }
 
         @Test
-        @DisplayName("resetFriction resets the friction counter")
-        void resetFriction() {
+        @DisplayName("Damping rate is constant (not increasing over time)")
+        void constantDampingRate() {
             Puck puck = Puck.create(new Position(0.5, 0.5));
-            puck.setSpeedXY(0.01, 0.01);
+            puck.setSpeedXY(0.01, 0);
 
-            // Apply many ticks to build up friction
-            for (int i = 0; i < 50; i++) {
+            // Measure damping ratio between consecutive ticks at different points
+            puck.onTick();
+            double speed1 = puck.getSpeedX();
+            puck.onTick();
+            double speed2 = puck.getSpeedX();
+            double ratio1 = speed2 / speed1;
+
+            // Reset and do the same many ticks later
+            puck.setSpeedXY(0.01, 0);
+            for (int i = 0; i < 200; i++) {
                 puck.onTick();
             }
-            double speedAfterFriction = Math.abs(puck.getSpeedX());
-
-            // Reset friction and set fresh speed
-            puck.resetFriction();
-            puck.setSpeedXY(0.01, 0.01);
+            double speedLate1 = puck.getSpeedX();
             puck.onTick();
-            double speedAfterReset = Math.abs(puck.getSpeedX());
+            double speedLate2 = puck.getSpeedX();
 
-            assertTrue(speedAfterReset > speedAfterFriction,
-                    "After resetFriction, the first tick should apply less friction than 50 accumulated ticks");
-        }
-    }
-
-    // ─── Ricochet ─────────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("Ricochet (reflection off handle)")
-    class Ricochet {
-
-        @Test
-        @DisplayName("Ricochet off horizontal surface reverses Y direction")
-        void horizontalReflection() {
-            Puck puck = Puck.create(new Position(0.5, 0.5));
-            puck.setSpeedXY(0, 0.01);
-
-            // Reflect off a horizontal normal (unit vector pointing up)
-            Vector normal = new Vector(0, 1);
-            puck.ricochet(normal);
-
-            assertEquals(0, puck.getSpeedX(), DELTA);
-            assertTrue(puck.getSpeedY() < 0, "Y speed should reverse after horizontal ricochet");
+            // Only check if speed hasn't decayed to threshold
+            if (Math.abs(speedLate1) > 1e-5 && Math.abs(speedLate2) > 1e-5) {
+                double ratio2 = speedLate2 / speedLate1;
+                assertEquals(ratio1, ratio2, 1e-6,
+                        "Damping ratio should be constant regardless of elapsed ticks");
+            }
         }
 
         @Test
-        @DisplayName("Ricochet off vertical surface reverses X direction")
-        void verticalReflection() {
+        @DisplayName("Puck stops completely when speed drops below threshold")
+        void puckStopsAtThreshold() {
             Puck puck = Puck.create(new Position(0.5, 0.5));
-            puck.setSpeedXY(0.01, 0);
+            puck.setSpeedXY(0.001, 0.001);
 
-            Vector normal = new Vector(1, 0);
-            puck.ricochet(normal);
+            // Run many ticks until the puck should have stopped
+            for (int i = 0; i < 10000; i++) {
+                puck.onTick();
+            }
 
-            assertTrue(puck.getSpeedX() < 0, "X speed should reverse after vertical ricochet");
-            assertEquals(0, puck.getSpeedY(), DELTA);
-        }
-
-        @Test
-        @DisplayName("Ricochet off vertical wall preserves speed magnitude")
-        void preservesMagnitude() {
-            Puck puck = Puck.create(new Position(0.5, 0.5));
-            puck.setSpeedXY(0.01, 0);
-
-            // Reflect off a vertical wall (normal along x-axis)
-            Vector normal = new Vector(1, 0);
-            puck.ricochet(normal);
-
-            // For a pure axis-aligned speed + axis-aligned normal, magnitude should be
-            // preserved
-            assertEquals(0.01, Math.abs(puck.getSpeedX()), DELTA,
-                    "Speed magnitude should be preserved after axis-aligned ricochet");
-        }
-    }
-
-    // ─── Speed Negation ───────────────────────────────────────────
-
-    @Nested
-    @DisplayName("Speed negation")
-    class SpeedNegation {
-
-        @Test
-        @DisplayName("negateSpeedX flips the X component sign")
-        void negateX() {
-            Puck puck = Puck.create(new Position(0.5, 0.5));
-            puck.setSpeedXY(0.01, 0.02);
-
-            puck.negateSpeedX();
-
-            assertEquals(-0.01, puck.getSpeedX(), DELTA);
-            assertEquals(0.02, puck.getSpeedY(), DELTA);
-        }
-
-        @Test
-        @DisplayName("negateSpeedY flips the Y component sign")
-        void negateY() {
-            Puck puck = Puck.create(new Position(0.5, 0.5));
-            puck.setSpeedXY(0.01, 0.02);
-
-            puck.negateSpeedY();
-
-            assertEquals(0.01, puck.getSpeedX(), DELTA);
-            assertEquals(-0.02, puck.getSpeedY(), DELTA);
-        }
-
-        @Test
-        @DisplayName("Double negation restores original speed")
-        void doubleNegation() {
-            Puck puck = Puck.create(new Position(0.5, 0.5));
-            puck.setSpeedXY(0.01, -0.02);
-
-            puck.negateSpeedX();
-            puck.negateSpeedX();
-
-            assertEquals(0.01, puck.getSpeedX(), DELTA);
+            assertEquals(0, puck.getSpeedX(), DELTA, "X speed should reach exactly 0");
+            assertEquals(0, puck.getSpeedY(), DELTA, "Y speed should reach exactly 0");
         }
     }
 }

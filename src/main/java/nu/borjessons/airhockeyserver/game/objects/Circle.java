@@ -4,7 +4,7 @@ import nu.borjessons.airhockeyserver.game.properties.Position;
 import nu.borjessons.airhockeyserver.game.properties.Radius;
 
 public abstract class Circle {
-  private Position position;
+  private volatile Position position;
   private final Radius radius;
 
   protected Circle(Position position, Radius radius) {
