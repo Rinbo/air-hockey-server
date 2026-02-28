@@ -31,7 +31,7 @@ commercial deployment with low-latency gameplay as the primary objective.
 
 ## Overview
 
-The Air Hockey Server is the authoritative backend for the Börjessons Air Hockey
+The Air Hockey Server is the authoritative backend for the Borjessons Air Hockey
 platform. It owns the game simulation — all physics, scoring, and collision
 logic runs server-side to prevent cheating and ensure consistency across
 clients. The server broadcasts the computed board state to both players at 50
@@ -369,4 +369,4 @@ The project includes unit and integration tests covering the core game logic:
 
 ## License
 
-Copyright © 2023–2026 Börjessons. All rights reserved.
+Copyright © 2023–2026 Dockside Labs AB. All rights reserved.

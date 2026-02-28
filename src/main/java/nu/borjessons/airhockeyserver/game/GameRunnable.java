@@ -146,10 +146,19 @@ class GameRunnable implements Runnable {
 
     if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION))
       return Collision.NO_COLLISION;
-    if (puckPosition.y() - GameConstants.PUCK_RADIUS.y() > 1)
-      return Collision.P1_GOAL;
-    if (puckPosition.y() + GameConstants.PUCK_RADIUS.y() < 0)
-      return Collision.P2_GOAL;
+
+    boolean inGoalZoneX = puckPosition.x() >= 0.5 - GameConstants.GOAL_WIDTH
+        && puckPosition.x() <= 0.5 + GameConstants.GOAL_WIDTH;
+
+    // Puck past bottom edge
+    if (puckPosition.y() - GameConstants.PUCK_RADIUS.y() > 1) {
+      return inGoalZoneX ? Collision.P1_GOAL : Collision.BOTTOM_WALL;
+    }
+    // Puck past top edge
+    if (puckPosition.y() + GameConstants.PUCK_RADIUS.y() < 0) {
+      return inGoalZoneX ? Collision.P2_GOAL : Collision.TOP_WALL;
+    }
+
     if (isTopWallHit(puckPosition))
       return Collision.TOP_WALL;
     if (isBottomWallHit(puckPosition))

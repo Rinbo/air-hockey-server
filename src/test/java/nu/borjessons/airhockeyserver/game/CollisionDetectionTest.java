@@ -135,6 +135,26 @@ class CollisionDetectionTest {
             assertEquals(Collision.NO_COLLISION, result,
                     "Puck at the goal mouth should pass through, not bounce off the wall");
         }
+
+        @Test
+        @DisplayName("Puck past bottom edge OUTSIDE goal zone → BOTTOM_WALL (not a goal)")
+        void bottomEdgeOutsideGoalIsWall() {
+            // Puck is to the right of the goal posts, past the bottom edge
+            Position puckPos = new Position(0.5 + GameConstants.GOAL_WIDTH + 0.05,
+                    1.0 + GameConstants.PUCK_RADIUS.y() + 0.01);
+            assertEquals(Collision.BOTTOM_WALL, createRunnable(puckPos).detectCollision(),
+                    "Puck past bottom edge outside goal zone should bounce, not score");
+        }
+
+        @Test
+        @DisplayName("Puck past top edge OUTSIDE goal zone → TOP_WALL (not a goal)")
+        void topEdgeOutsideGoalIsWall() {
+            // Puck is to the right of the goal posts, past the top edge
+            Position puckPos = new Position(0.5 + GameConstants.GOAL_WIDTH + 0.05,
+                    -(GameConstants.PUCK_RADIUS.y() + 0.01));
+            assertEquals(Collision.TOP_WALL, createRunnable(puckPos).detectCollision(),
+                    "Puck past top edge outside goal zone should bounce, not score");
+        }
     }
 
     // ─── Handle Collisions ────────────────────────────────────────
