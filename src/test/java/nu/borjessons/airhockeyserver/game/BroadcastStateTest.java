@@ -21,7 +21,7 @@ class BroadcastStateTest {
     @DisplayName("set() stores exact coordinates")
     void setStoresExactCoordinates() {
         BroadcastState state = new BroadcastState();
-        state.set(new Position(0.3, 0.7), new Position(0.5, 0.2), 60);
+        state.set(new Position(0.3, 0.7), new Position(0.5, 0.2), 60, BroadcastState.NO_EVENT);
 
         assertEquals(0.3, state.getOpponent().getX(), DELTA);
         assertEquals(0.7, state.getOpponent().getY(), DELTA);
@@ -34,7 +34,7 @@ class BroadcastStateTest {
     @DisplayName("setMirrored() inverts coordinates via (1-x, 1-y)")
     void setMirroredInvertsCoordinates() {
         BroadcastState state = new BroadcastState();
-        state.setMirrored(new Position(0.3, 0.7), new Position(0.5, 0.2), 45);
+        state.setMirrored(new Position(0.3, 0.7), new Position(0.5, 0.2), 45, BroadcastState.NO_EVENT);
 
         assertEquals(0.7, state.getOpponent().getX(), DELTA);
         assertEquals(0.3, state.getOpponent().getY(), DELTA);
@@ -48,7 +48,7 @@ class BroadcastStateTest {
     void mirroringCenterIsIdentity() {
         BroadcastState state = new BroadcastState();
         Position center = new Position(0.5, 0.5);
-        state.setMirrored(center, center, 30);
+        state.setMirrored(center, center, 30, BroadcastState.NO_EVENT);
 
         assertEquals(0.5, state.getOpponent().getX(), DELTA);
         assertEquals(0.5, state.getOpponent().getY(), DELTA);
@@ -63,14 +63,25 @@ class BroadcastStateTest {
 
         // First mirror
         BroadcastState state1 = new BroadcastState();
-        state1.setMirrored(original, original, 10);
+        state1.setMirrored(original, original, 10, BroadcastState.NO_EVENT);
 
         // Second mirror
         Position mirrored = new Position(state1.getOpponent().getX(), state1.getOpponent().getY());
         BroadcastState state2 = new BroadcastState();
-        state2.setMirrored(mirrored, mirrored, 10);
+        state2.setMirrored(mirrored, mirrored, 10, BroadcastState.NO_EVENT);
 
         assertEquals(original.x(), state2.getOpponent().getX(), DELTA);
         assertEquals(original.y(), state2.getOpponent().getY(), DELTA);
+    }
+
+    @Test
+    @DisplayName("Collision event is stored and retrievable")
+    void collisionEventIsStored() {
+        BroadcastState state = new BroadcastState();
+        state.set(new Position(0.5, 0.5), new Position(0.5, 0.5), 30, BroadcastState.HANDLE_HIT);
+        assertEquals(BroadcastState.HANDLE_HIT, state.getCollisionEvent());
+
+        state.setMirrored(new Position(0.5, 0.5), new Position(0.5, 0.5), 30, BroadcastState.GOAL);
+        assertEquals(BroadcastState.GOAL, state.getCollisionEvent());
     }
 }

@@ -25,18 +25,22 @@ import nu.borjessons.airhockeyserver.service.api.GameService;
  * Raw WebSocket handler for the high-frequency game board-state channel.
  * Replaces STOMP for the board-state topic to reduce protocol overhead.
  *
- * <p>Binary protocol:
+ * <p>
+ * Binary protocol:
  * <ul>
- *   <li>Server → Client (40 bytes): 5 × Float64 [opponentX, opponentY, puckX, puckY, remainingSeconds]</li>
- *   <li>Client → Server (16 bytes): 2 × Float64 [handleX, handleY]</li>
+ * <li>Server → Client (48 bytes): 6 × Float64 [opponentX, opponentY, puckX,
+ * puckY, remainingSeconds, collisionEvent]</li>
+ * <li>Client → Server (16 bytes): 2 × Float64 [handleX, handleY]</li>
  * </ul>
  *
- * <p>Connection URL: /ws/game/{gameId}/{agency} where agency is "player-1" or "player-2"
+ * <p>
+ * Connection URL: /ws/game/{gameId}/{agency} where agency is "player-1" or
+ * "player-2"
  */
 @Component
 public class GameWebSocketHandler extends BinaryWebSocketHandler {
-  private static final int BROADCAST_STATE_BYTES = 5 * Double.BYTES; // 40 bytes
-  private static final int HANDLE_UPDATE_BYTES = 2 * Double.BYTES;  // 16 bytes
+  private static final int BROADCAST_STATE_BYTES = 6 * Double.BYTES; // 48 bytes
+  private static final int HANDLE_UPDATE_BYTES = 2 * Double.BYTES; // 16 bytes
   private static final Logger logger = LoggerFactory.getLogger(GameWebSocketHandler.class);
   /**
    * Key: "gameId:agency" (e.g. "abc123:PLAYER_1"), Value: WebSocketSession
@@ -88,7 +92,8 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
   public void sendBoardState(GameId gameId, Agency agency, BroadcastState state) {
     String key = sessionKey(gameId.toString(), agency);
     WebSocketSession session = sessions.get(key);
-    if (session == null || !session.isOpen()) return;
+    if (session == null || !session.isOpen())
+      return;
 
     try {
       ByteBuffer buffer = ByteBuffer.allocate(BROADCAST_STATE_BYTES).order(ByteOrder.LITTLE_ENDIAN);
@@ -97,6 +102,7 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
       buffer.putDouble(state.getPuck().getX());
       buffer.putDouble(state.getPuck().getY());
       buffer.putDouble(state.getRemainingSeconds());
+      buffer.putDouble(state.getCollisionEvent());
       buffer.flip();
 
       session.sendMessage(new BinaryMessage(buffer));
@@ -108,7 +114,8 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
   @Override
   protected void handleBinaryMessage(@NonNull WebSocketSession session, BinaryMessage message) {
     ByteBuffer payload = message.getPayload();
-    if (payload.remaining() < HANDLE_UPDATE_BYTES) return;
+    if (payload.remaining() < HANDLE_UPDATE_BYTES)
+      return;
 
     payload.order(ByteOrder.LITTLE_ENDIAN);
     double x = payload.getDouble();
@@ -116,7 +123,8 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
 
     String gameId = (String) session.getAttributes().get("gameId");
     Agency agency = (Agency) session.getAttributes().get("agency");
-    if (gameId == null || agency == null) return;
+    if (gameId == null || agency == null)
+      return;
 
     Position position = new Position(x, y);
     gameService.getGameStore(new GameId(gameId))

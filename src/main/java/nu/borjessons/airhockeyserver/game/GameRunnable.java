@@ -34,6 +34,9 @@ class GameRunnable implements Runnable {
   private long puckResetRemainingNs;
   private Position puckResetTarget;
 
+  // Collision event for the current frame (reset each tick)
+  private int currentCollisionEvent = BroadcastState.NO_EVENT;
+
   public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector, boolean aiMode) {
     Objects.requireNonNull(boardState, "boardState must not be null");
     Objects.requireNonNull(gameId, "gameId must not be null");
@@ -124,8 +127,10 @@ class GameRunnable implements Runnable {
       }
 
       boardState.puck().onTick();
+      currentCollisionEvent = BroadcastState.NO_EVENT;
       Collision collision = detectCollision();
       handleCollision(collision);
+      currentCollisionEvent = collisionToEvent(collision);
       updateHandleSpeeds();
 
       long remainingSeconds = (GAME_DURATION_NS - elapsedSinceStart) / 1_000_000_000L;
@@ -190,13 +195,22 @@ class GameRunnable implements Runnable {
     }
   }
 
+  private static int collisionToEvent(Collision collision) {
+    return switch (collision) {
+      case LEFT_WALL, RIGHT_WALL, TOP_WALL, BOTTOM_WALL -> BroadcastState.WALL_HIT;
+      case P1_HANDLE, P2_HANDLE -> BroadcastState.HANDLE_HIT;
+      case P1_GOAL, P2_GOAL -> BroadcastState.GOAL;
+      case NO_COLLISION -> BroadcastState.NO_EVENT;
+    };
+  }
+
   private void broadcast(long remainingSeconds) {
     Position puckPosition = boardState.puck().getPosition();
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
 
-    p1State.set(playerTwoHandlePosition, puckPosition, remainingSeconds);
-    p2State.setMirrored(playerOneHandlePosition, puckPosition, remainingSeconds);
+    p1State.set(playerTwoHandlePosition, puckPosition, remainingSeconds, currentCollisionEvent);
+    p2State.setMirrored(playerOneHandlePosition, puckPosition, remainingSeconds, currentCollisionEvent);
     gameStoreConnector.broadcast(p1State, p2State);
   }
 
