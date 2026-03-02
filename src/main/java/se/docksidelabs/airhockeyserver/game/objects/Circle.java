@@ -1,0 +1,31 @@
+package se.docksidelabs.airhockeyserver.game.objects;
+
+import se.docksidelabs.airhockeyserver.game.properties.Position;
+import se.docksidelabs.airhockeyserver.game.properties.Radius;
+
+public abstract class Circle {
+  private volatile Position position;
+  private final Radius radius;
+
+  protected Circle(Position position, Radius radius) {
+    this.position = position;
+    this.radius = radius;
+  }
+
+  public Position getPosition() {
+    return position;
+  }
+
+  public Radius getRadius() {
+    return radius;
+  }
+
+  public Position getRadiusEdgePosition(double angle) {
+    Radius projection = getRadius().getAngledProjection(angle);
+    return new Position(position.x() + projection.x(), position.y() + projection.y());
+  }
+
+  public void setPosition(Position position) {
+    this.position = position;
+  }
+}

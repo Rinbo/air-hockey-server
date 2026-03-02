@@ -1,0 +1,39 @@
+package se.docksidelabs.airhockeyserver.controller.rest;
+
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+
+import se.docksidelabs.airhockeyserver.controller.UserController;
+import se.docksidelabs.airhockeyserver.model.Username;
+import se.docksidelabs.airhockeyserver.repository.UserStore;
+
+class UserControllerTest {
+
+  private static void verifyResponse(ResponseEntity<UserController.Response> response, HttpStatus expectedStatus,
+      UserController.Response expectedBody) {
+    Assertions.assertEquals(expectedStatus, response.getStatusCode());
+    Assertions.assertEquals(expectedBody, response.getBody());
+  }
+
+  @Test
+  void validateName() {
+    SimpMessagingTemplate simpMessagingTemplate = Mockito.mock(SimpMessagingTemplate.class);
+    UserStore userStore = new UserStore();
+    userStore.addUser(new Username("User$123"));
+    userStore.addUser(new Username("User-1"));
+
+    UserController userController = new UserController(simpMessagingTemplate, userStore);
+
+    verifyResponse(userController.validateName("User$234"), HttpStatus.CONFLICT,
+        new UserController.Response("Already taken"));
+    verifyResponse(userController.validateName("user"), HttpStatus.CONFLICT,
+        new UserController.Response("Already taken"));
+    verifyResponse(userController.validateName("Robin"), HttpStatus.OK, new UserController.Response("Robin"));
+
+    Mockito.verifyNoInteractions(simpMessagingTemplate);
+  }
+}
