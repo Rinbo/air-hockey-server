@@ -16,6 +16,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import se.docksidelabs.airhockeyserver.game.BoardState;
 import se.docksidelabs.airhockeyserver.game.GameEngine;
 import se.docksidelabs.airhockeyserver.game.properties.Position;
+import se.docksidelabs.airhockeyserver.gateway.GatewayClient;
 import se.docksidelabs.airhockeyserver.model.Agency;
 import se.docksidelabs.airhockeyserver.model.GameId;
 import se.docksidelabs.airhockeyserver.model.GameState;
@@ -50,13 +51,13 @@ public class GameStore {
     return newGameState;
   }
 
-  public synchronized boolean addPlayer(Username username) {
+  public synchronized boolean addPlayer(Username username, String gatewayUserId) {
     if (players.size() > 1)
       return false;
 
     return switch (players.size()) {
-      case 0 -> players.add(new Player(Agency.PLAYER_1, username));
-      case 1 -> players.add(new Player(Agency.PLAYER_2, username));
+      case 0 -> players.add(new Player(Agency.PLAYER_1, username, gatewayUserId));
+      case 1 -> players.add(new Player(Agency.PLAYER_2, username, gatewayUserId));
       default -> false;
     };
   }
@@ -105,9 +106,10 @@ public class GameStore {
     players.remove(player);
   }
 
-  public void startGame(SimpMessagingTemplate messagingTemplate, GameWebSocketHandler gameWebSocketHandler) {
+  public void startGame(SimpMessagingTemplate messagingTemplate, GameWebSocketHandler gameWebSocketHandler,
+      GatewayClient gatewayClient) {
     transition(GameState.GAME_RUNNING);
-    gameEngine.startGame(gameId, new GameStoreConnector(this, messagingTemplate, gameWebSocketHandler));
+    gameEngine.startGame(gameId, new GameStoreConnector(this, messagingTemplate, gameWebSocketHandler, gatewayClient));
   }
 
   public void terminate() {

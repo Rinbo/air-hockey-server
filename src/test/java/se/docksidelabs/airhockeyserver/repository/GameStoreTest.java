@@ -12,10 +12,10 @@ class GameStoreTest {
     GameStore gameStore = new GameStore(TestUtils.GAME_ID);
     Assertions.assertEquals(0, gameStore.getPlayers().size());
 
-    gameStore.addPlayer(TestUtils.USER1);
+    gameStore.addPlayer(TestUtils.USER1, null);
     Assertions.assertEquals(1, gameStore.getPlayers().size());
 
-    gameStore.addPlayer(TestUtils.USER2);
+    gameStore.addPlayer(TestUtils.USER2, null);
     Assertions.assertEquals(2, gameStore.getPlayers().size());
 
     gameStore.removePlayer(TestUtils.PLAYER2);
@@ -44,7 +44,7 @@ class GameStoreTest {
   void maxPlayerTest() {
     GameStore gameStore = TestUtils.createGameStore();
 
-    gameStore.addPlayer(TestUtils.OTHER_USER);
+    gameStore.addPlayer(TestUtils.OTHER_USER, null);
 
     Assertions.assertEquals(2, gameStore.getPlayers().size());
 

@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import se.docksidelabs.airhockeyserver.gateway.GatewayClient;
 import se.docksidelabs.airhockeyserver.model.GameId;
 import se.docksidelabs.airhockeyserver.model.Notification;
 import se.docksidelabs.airhockeyserver.model.Player;
@@ -23,17 +24,20 @@ import se.docksidelabs.airhockeyserver.websocket.GameWebSocketHandler;
 @Service
 public class CountdownServiceImpl implements CountdownService {
   private final Map<GameId, Timer> countdownMap;
+  private final GatewayClient gatewayClient;
   private final GameService gameService;
   private final GameWebSocketHandler gameWebSocketHandler;
   private final SimpMessagingTemplate messagingTemplate;
 
   public CountdownServiceImpl(GameService gameService, SimpMessagingTemplate messagingTemplate,
-      GameWebSocketHandler gameWebSocketHandler) {
+      GameWebSocketHandler gameWebSocketHandler, GatewayClient gatewayClient) {
     Objects.requireNonNull(gameService, "gameService must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
     Objects.requireNonNull(gameWebSocketHandler, "gameWebSocketHandler must not be null");
+    Objects.requireNonNull(gatewayClient, "gatewayClient must not be null");
 
     this.countdownMap = new ConcurrentHashMap<>();
+    this.gatewayClient = gatewayClient;
     this.gameService = gameService;
     this.gameWebSocketHandler = gameWebSocketHandler;
     this.messagingTemplate = messagingTemplate;
@@ -78,7 +82,7 @@ public class CountdownServiceImpl implements CountdownService {
             new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--));
         if (count < 0) {
           gameService.getGameStore(gameId)
-              .ifPresent(gameStore -> gameStore.startGame(messagingTemplate, gameWebSocketHandler));
+              .ifPresent(gameStore -> gameStore.startGame(messagingTemplate, gameWebSocketHandler, gatewayClient));
           messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.GAME_RUNNING);
           timer.cancel();
           countdownMap.remove(gameId);

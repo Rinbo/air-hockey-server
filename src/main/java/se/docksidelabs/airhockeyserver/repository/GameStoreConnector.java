@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import se.docksidelabs.airhockeyserver.game.BroadcastState;
+import se.docksidelabs.airhockeyserver.gateway.GatewayClient;
 import se.docksidelabs.airhockeyserver.model.Agency;
 import se.docksidelabs.airhockeyserver.model.GameId;
 import se.docksidelabs.airhockeyserver.model.GameState;
@@ -16,16 +17,19 @@ import se.docksidelabs.airhockeyserver.utils.TopicUtils;
 import se.docksidelabs.airhockeyserver.websocket.GameWebSocketHandler;
 
 public class GameStoreConnector {
+  private final GatewayClient gatewayClient;
   private final GameStore gameStore;
   private final GameWebSocketHandler gameWebSocketHandler;
   private final SimpMessagingTemplate messagingTemplate;
 
   public GameStoreConnector(GameStore gameStore, SimpMessagingTemplate messagingTemplate,
-      GameWebSocketHandler gameWebSocketHandler) {
+      GameWebSocketHandler gameWebSocketHandler, GatewayClient gatewayClient) {
     Objects.requireNonNull(gameStore, "gameStore must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
     Objects.requireNonNull(gameWebSocketHandler, "gameWebSocketHandler must not be null");
+    Objects.requireNonNull(gatewayClient, "gatewayClient must not be null");
 
+    this.gatewayClient = gatewayClient;
     this.gameStore = gameStore;
     this.messagingTemplate = messagingTemplate;
     this.gameWebSocketHandler = gameWebSocketHandler;
@@ -77,6 +81,9 @@ public class GameStoreConnector {
         TopicUtils.createBotMessage(printResult(players)));
 
     updateGamesWon(players);
+
+    // Report game played to gateway for each human player
+    players.forEach(player -> gatewayClient.reportGamePlayed(player.getGatewayUserId()));
 
     players.forEach(Player::toggleReady);
 

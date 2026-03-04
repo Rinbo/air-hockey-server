@@ -10,7 +10,7 @@ import se.docksidelabs.airhockeyserver.model.Username;
 import se.docksidelabs.airhockeyserver.repository.GameStore;
 
 public interface GameService {
-  boolean addUserToGame(GameId gameId, Username username);
+  boolean addUserToGame(GameId gameId, Username username, String gatewayUserId);
 
   void deleteGame(GameId gameId);
 

@@ -87,14 +87,15 @@ public class GameController {
   public void handleConnect(@DestinationVariable String id, @Payload UserMessage userMessage,
       SimpMessageHeaderAccessor header) {
     Username username = userMessage.username();
+    String gatewayUserId = userMessage.gatewayUserId();
     GameId gameId = new GameId(id);
 
-    logger.info("{} connected", username);
+    logger.info("{} connected (gatewayUserId={})", username, gatewayUserId);
 
     HeaderUtils.setUsername(header, username);
     HeaderUtils.setGameId(header, gameId);
 
-    if (gameService.addUserToGame(gameId, username)) {
+    if (gameService.addUserToGame(gameId, username, gatewayUserId)) {
       logger.info("{} added to gameStore", username);
       messagingTemplate.convertAndSend(TopicUtils.createChatTopic(gameId),
           TopicUtils.createBotMessage(AppUtils.format("%s joined", username.getTrimmed())));

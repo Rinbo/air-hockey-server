@@ -38,15 +38,15 @@ public class TestUtils {
   public static final Username USER2 = new Username("Player2");
     // @formatter:on
   public static final Player PLAYER2 = new Player(Agency.PLAYER_2, USER2);
-    public static final double X_DIFF_REAL = PUCK_POS_REAL.x() - HANDLE_POS_REAL.x();
-    public static final double Y_DIFF_REAL = PUCK_POS_REAL.y() - HANDLE_POS_REAL.y();
-    public static final double ANGLE_REAL = Math.atan(Y_DIFF_REAL / X_DIFF_REAL);
-    // @formatter:on
+  public static final double X_DIFF_REAL = PUCK_POS_REAL.x() - HANDLE_POS_REAL.x();
+  public static final double Y_DIFF_REAL = PUCK_POS_REAL.y() - HANDLE_POS_REAL.y();
+  public static final double ANGLE_REAL = Math.atan(Y_DIFF_REAL / X_DIFF_REAL);
+  // @formatter:on
 
   public static GameStore createGameStore() {
     GameStore gameStore = new GameStore(GAME_ID);
-    gameStore.addPlayer(USER1);
-    gameStore.addPlayer(USER2);
+    gameStore.addPlayer(USER1, null);
+    gameStore.addPlayer(USER2, null);
     return gameStore;
   }
 
@@ -57,10 +57,14 @@ public class TestUtils {
   @Test
   void assertConstantsTest() {
     double hypotenuse = Math.sqrt(Math.pow(TestUtils.X_DIFF_REAL, 2) + Math.pow(TestUtils.X_DIFF_REAL, 2));
-    Assertions.assertEquals(TestUtils.X_DIFF_REAL, (TestUtils.PUCK_POS.x() - TestUtils.HANDLE_POS.x()) * TestUtils.BOARD_WIDTH, TestUtils.ALLOWED_DELTA);
-    Assertions.assertEquals(TestUtils.Y_DIFF_REAL, (TestUtils.PUCK_POS.y() - TestUtils.HANDLE_POS.y()) * TestUtils.BOARD_HEIGHT, TestUtils.ALLOWED_DELTA);
+    Assertions.assertEquals(TestUtils.X_DIFF_REAL,
+        (TestUtils.PUCK_POS.x() - TestUtils.HANDLE_POS.x()) * TestUtils.BOARD_WIDTH, TestUtils.ALLOWED_DELTA);
+    Assertions.assertEquals(TestUtils.Y_DIFF_REAL,
+        (TestUtils.PUCK_POS.y() - TestUtils.HANDLE_POS.y()) * TestUtils.BOARD_HEIGHT, TestUtils.ALLOWED_DELTA);
 
-    Assertions.assertEquals(hypotenuse, Math.abs(TestUtils.X_DIFF_REAL / Math.cos(TestUtils.ANGLE_REAL)), TestUtils.ALLOWED_DELTA);
-    Assertions.assertEquals(hypotenuse, Math.abs(TestUtils.Y_DIFF_REAL / Math.sin(TestUtils.ANGLE_REAL)), TestUtils.ALLOWED_DELTA);
+    Assertions.assertEquals(hypotenuse, Math.abs(TestUtils.X_DIFF_REAL / Math.cos(TestUtils.ANGLE_REAL)),
+        TestUtils.ALLOWED_DELTA);
+    Assertions.assertEquals(hypotenuse, Math.abs(TestUtils.Y_DIFF_REAL / Math.sin(TestUtils.ANGLE_REAL)),
+        TestUtils.ALLOWED_DELTA);
   }
 }

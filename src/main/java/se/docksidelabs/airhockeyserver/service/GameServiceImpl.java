@@ -33,9 +33,9 @@ public class GameServiceImpl implements GameService {
   }
 
   @Override
-  public boolean addUserToGame(GameId gameId, Username username) {
+  public boolean addUserToGame(GameId gameId, Username username, String gatewayUserId) {
     GameStore gameStore = gameStoreMap.computeIfAbsent(gameId, GameStore::new);
-    return gameStore.addPlayer(username);
+    return gameStore.addPlayer(username, gatewayUserId);
   }
 
   @Override

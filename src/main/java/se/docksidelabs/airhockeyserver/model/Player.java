@@ -7,28 +7,38 @@ import se.docksidelabs.airhockeyserver.repository.GameStore;
 
 public class Player {
   private final Agency agency;
+  private final String gatewayUserId;
   private int gamesWon;
   private boolean ready;
   private short score;
   private final Username username;
+
   public Player(Agency agency, Username username) {
+    this(agency, username, null);
+  }
+
+  public Player(Agency agency, Username username, String gatewayUserId) {
     Objects.requireNonNull(username, "username must not be null");
     Objects.requireNonNull(agency, "agency must not be null");
 
     this.agency = agency;
+    this.gatewayUserId = gatewayUserId;
     this.username = username;
     this.score = 0;
     this.ready = false;
   }
 
   /**
-   * Equality only determined by name so that no duplicates of players can exist in the
+   * Equality only determined by name so that no duplicates of players can exist
+   * in the
    * {@link GameStore} player set.
    */
   @Override
   public boolean equals(Object object) {
-    if (this == object) return true;
-    if (object == null || getClass() != object.getClass()) return false;
+    if (this == object)
+      return true;
+    if (object == null || getClass() != object.getClass())
+      return false;
 
     Player other = (Player) object;
 
@@ -37,6 +47,10 @@ public class Player {
 
   public Agency getAgency() {
     return agency;
+  }
+
+  public String getGatewayUserId() {
+    return gatewayUserId;
   }
 
   public int getGamesWon() {
