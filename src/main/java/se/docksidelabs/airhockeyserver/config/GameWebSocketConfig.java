@@ -1,5 +1,6 @@
 package se.docksidelabs.airhockeyserver.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
@@ -16,18 +17,18 @@ import se.docksidelabs.airhockeyserver.websocket.GameWebSocketHandler;
 @EnableWebSocket
 public class GameWebSocketConfig implements WebSocketConfigurer {
     private final GameWebSocketHandler gameWebSocketHandler;
+    private final String[] allowedOrigins;
 
-    public GameWebSocketConfig(GameWebSocketHandler gameWebSocketHandler) {
+    public GameWebSocketConfig(
+            GameWebSocketHandler gameWebSocketHandler,
+            @Value("${cors.allowed-origins}") String allowedOrigins) {
         this.gameWebSocketHandler = gameWebSocketHandler;
+        this.allowedOrigins = allowedOrigins.split(",");
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(gameWebSocketHandler, "/ws/game/**")
-                .setAllowedOrigins(
-                        "http://localhost:5173",
-                        "http://localhost:4173",
-                        "https://localhost:5173",
-                        "https://rinbo.github.io");
+                .setAllowedOrigins(allowedOrigins);
     }
 }

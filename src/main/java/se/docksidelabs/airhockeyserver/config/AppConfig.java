@@ -14,9 +14,21 @@ import se.docksidelabs.airhockeyserver.repository.UserStore;
 import se.docksidelabs.airhockeyserver.service.api.GameService;
 import se.docksidelabs.airhockeyserver.worker.PingWorker;
 import se.docksidelabs.airhockeyserver.worker.RepositoryCleaner;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class AppConfig {
+  @Bean
+  ObjectMapper objectMapper() {
+    return JsonMapper.builder()
+        .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        .build();
+  }
+
   @Bean
   Map<GameId, GameStore> createGameStoreMap() {
     return new ConcurrentHashMap<>();

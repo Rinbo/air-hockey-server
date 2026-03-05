@@ -15,6 +15,7 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
 
+import se.docksidelabs.airhockeyserver.config.JwtValidator;
 import se.docksidelabs.airhockeyserver.game.BroadcastState;
 import se.docksidelabs.airhockeyserver.game.properties.Position;
 import se.docksidelabs.airhockeyserver.model.Agency;
@@ -34,8 +35,8 @@ import se.docksidelabs.airhockeyserver.service.api.GameService;
  * </ul>
  *
  * <p>
- * Connection URL: /ws/game/{gameId}/{agency} where agency is "player-1" or
- * "player-2"
+ * Connection URL: /ws/game/{gameId}/{agency}?token={jwt} where agency is
+ * "player-1" or "player-2"
  */
 @Component
 public class GameWebSocketHandler extends BinaryWebSocketHandler {
@@ -47,9 +48,11 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
    */
   private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
   private final GameService gameService;
+  private final JwtValidator jwtValidator;
 
-  public GameWebSocketHandler(GameService gameService) {
+  public GameWebSocketHandler(GameService gameService, JwtValidator jwtValidator) {
     this.gameService = gameService;
+    this.jwtValidator = jwtValidator;
   }
 
   @Override
@@ -64,6 +67,14 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
 
   @Override
   public void afterConnectionEstablished(@NonNull WebSocketSession session) {
+    // Validate JWT from query parameter
+    String token = extractQueryParam(session, "token");
+    if (token == null || jwtValidator.validate(token).isEmpty()) {
+      logger.warn("Game WS rejected: invalid or missing token");
+      closeQuietly(session);
+      return;
+    }
+
     String[] parts = parseUri(session);
     if (parts == null) {
       closeQuietly(session);
@@ -164,5 +175,20 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
 
   private String sessionKey(String gameId, Agency agency) {
     return gameId + ":" + agency;
+  }
+
+  private String extractQueryParam(WebSocketSession session, String name) {
+    if (session.getUri() == null)
+      return null;
+    String query = session.getUri().getQuery();
+    if (query == null)
+      return null;
+    for (String param : query.split("&")) {
+      String[] kv = param.split("=", 2);
+      if (kv.length == 2 && name.equals(kv[0])) {
+        return kv[1];
+      }
+    }
+    return null;
   }
 }
