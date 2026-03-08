@@ -14,6 +14,7 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 import se.docksidelabs.airhockeyserver.config.JwtValidator;
 import se.docksidelabs.airhockeyserver.game.BroadcastState;
@@ -42,6 +43,8 @@ import se.docksidelabs.airhockeyserver.service.api.GameService;
 public class GameWebSocketHandler extends BinaryWebSocketHandler {
   private static final int BROADCAST_STATE_BYTES = 6 * Double.BYTES; // 48 bytes
   private static final int HANDLE_UPDATE_BYTES = 2 * Double.BYTES; // 16 bytes
+  private static final int SEND_BUFFER_LIMIT = 16 * 1024; // 16 KB — ~340 state frames
+  private static final int SEND_TIME_LIMIT_MS = 5_000; // 5 seconds
   private static final Logger logger = LoggerFactory.getLogger(GameWebSocketHandler.class);
   /**
    * Key: "gameId:agency" (e.g. "abc123:PLAYER_1"), Value: WebSocketSession
@@ -89,7 +92,12 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
     }
 
     String key = sessionKey(gameId, agency);
-    sessions.put(key, session);
+    // Wrap session to prevent sendMessage() from blocking the game loop thread
+    // when the client's TCP send buffer is full. Slow clients will be
+    // disconnected after SEND_TIME_LIMIT_MS rather than stalling the server.
+    WebSocketSession concurrentSession = new ConcurrentWebSocketSessionDecorator(
+        session, SEND_TIME_LIMIT_MS, SEND_BUFFER_LIMIT);
+    sessions.put(key, concurrentSession);
 
     session.getAttributes().put("gameId", gameId);
     session.getAttributes().put("agency", agency);
@@ -119,6 +127,11 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
       session.sendMessage(new BinaryMessage(buffer));
     } catch (IOException e) {
       logger.warn("Failed to send board state to {} {}: {}", gameId, agency, e.getMessage());
+    } catch (Exception e) {
+      // ConcurrentWebSocketSessionDecorator throws SessionLimitExceededException
+      // when the client is too slow — disconnect rather than block the game loop
+      logger.warn("Slow client disconnected {} {}: {}", gameId, agency, e.getMessage());
+      sessions.remove(key);
     }
   }
 
