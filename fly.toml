@@ -8,7 +8,7 @@ primary_region = "arn"
   internal_port = 8081
   force_https = true
   auto_stop_machines = "stop"
-  auto_start_machines = true
+  auto_start_machines = false  # flip to true when matchmaking is ready (Phase 3)
   min_machines_running = 0
 
 [[vm]]
