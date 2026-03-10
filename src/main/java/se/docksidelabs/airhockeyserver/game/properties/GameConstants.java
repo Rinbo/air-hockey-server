@@ -13,8 +13,8 @@ import se.docksidelabs.airhockeyserver.game.objects.Puck;
  */
 public final class GameConstants {
   public static final double BOARD_ASPECT_RATIO = 0.625;
-  public static final int FRAME_RATE = 50;
-  public static final double FRICTION_DAMPING = 0.997;
+  public static final int FRAME_RATE = 60;
+  public static final double FRICTION_DAMPING = 0.9975;
   public static final Duration GAME_DURATION = Duration.ofSeconds(60);
   public static final double GOAL_WIDTH = 0.18;
   public static final double HANDLE_RESTITUTION = 0.9;

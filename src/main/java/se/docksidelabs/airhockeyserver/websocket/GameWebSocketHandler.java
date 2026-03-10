@@ -105,6 +105,9 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
     logger.info("Game WS connected: {} as {}", gameId, agency);
   }
 
+  private static final ThreadLocal<ByteBuffer> SEND_BUFFER = ThreadLocal.withInitial(
+      () -> ByteBuffer.allocate(BROADCAST_STATE_BYTES).order(ByteOrder.LITTLE_ENDIAN));
+
   /**
    * Called from the game loop to broadcast board state to a specific player.
    */
@@ -115,7 +118,8 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
       return;
 
     try {
-      ByteBuffer buffer = ByteBuffer.allocate(BROADCAST_STATE_BYTES).order(ByteOrder.LITTLE_ENDIAN);
+      ByteBuffer buffer = SEND_BUFFER.get();
+      buffer.clear();
       buffer.putDouble(state.getOpponent().getX());
       buffer.putDouble(state.getOpponent().getY());
       buffer.putDouble(state.getPuck().getX());
