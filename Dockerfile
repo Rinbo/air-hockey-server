@@ -1,15 +1,15 @@
-## Stage 1: Build native image
-FROM container-registry.oracle.com/graalvm/native-image:25 AS build
+## Stage 1: Build JAR
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /app
 COPY pom.xml mvnw ./
 COPY .mvn .mvn
 RUN chmod +x mvnw && ./mvnw dependency:resolve -DskipTests
 COPY src src
-RUN ./mvnw -Pnative native:compile -DskipTests
+RUN ./mvnw package -DskipTests
 
-## Stage 2: Minimal runtime
-FROM debian:bookworm-slim
+## Stage 2: Minimal runtime with ZGC
+FROM eclipse-temurin:25-jre
 RUN groupadd -r app && useradd -r -g app app
-COPY --from=build /app/target/air-hockey-server /app/air-hockey-server
+COPY --from=build /app/target/*.jar /app/app.jar
 USER app
-ENTRYPOINT ["/app/air-hockey-server"]
+ENTRYPOINT ["java", "-XX:+UseZGC", "-Xmx1g", "-jar", "/app/app.jar"]
