@@ -27,7 +27,9 @@ import se.docksidelabs.airhockeyserver.game.properties.Position;
 public final class AiPlayer {
     private static final double DEFENSIVE_Y = 0.15;
     private static final double ATTACK_THRESHOLD_Y = 0.45;
-    private static final double LERP_SPEED = 0.12;
+    // Lerp factor per tick — frame-rate-independent.
+    // Original tuning: 0.12 at 50 FPS. Adjusted: 1 - (1-0.12)^(50/60) ≈ 0.1007
+    private static final double LERP_SPEED = 1.0 - Math.pow(1.0 - 0.12, 50.0 / GameConstants.FRAME_RATE);
     private static final double MAX_Y = 0.48;
     private static final double MIN_Y = GameConstants.HANDLE_RADIUS.y();
     private static final double MIN_X = GameConstants.HANDLE_RADIUS.x();

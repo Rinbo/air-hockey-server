@@ -21,7 +21,9 @@ public final class GameConstants {
   public static final Radius HANDLE_RADIUS = new Radius(0.09, 0.09 * BOARD_ASPECT_RATIO);
   public static final Position HANDLE_START_P1 = new Position(0.5, 0.8);
   public static final Position HANDLE_START_P2 = new Position(0.5, 0.2);
-  public static final double MAX_SPEED = FRAME_RATE / 1200.0 * Math.sqrt(2);
+  // Max puck speed per tick — frame-rate-independent.
+  // Physical max speed is MAX_SPEED * FRAME_RATE ≈ 2.95 board-widths/sec.
+  public static final double MAX_SPEED = (50.0 / 1200.0 * Math.sqrt(2)) * (50.0 / FRAME_RATE);
   public static final Position OFF_BOARD_POSITION = new Position(-1, -1);
   public static final Radius PUCK_RADIUS = new Radius(0.06, 0.06 * BOARD_ASPECT_RATIO);
   public static final double PUCK_HANDLE_MIN_DISTANCE = PUCK_RADIUS.x() + HANDLE_RADIUS.x();
