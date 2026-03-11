@@ -85,13 +85,14 @@ public class GameStoreConnector {
     // Report game played to gateway for each human player
     players.forEach(player -> gatewayClient.reportGamePlayed(player.getGatewayUserId()));
 
-    players.forEach(Player::toggleReady);
+    // Explicitly reset all players to not-ready (don't toggle — that's fragile)
+    players.forEach(p -> p.setReady(false));
 
     // Re-ready the AI so the next game starts when the human readies up
     if (gameStore.isAiMode()) {
       players.stream()
           .filter(p -> p.getAgency() == Agency.PLAYER_2)
-          .forEach(Player::toggleReady);
+          .forEach(p -> p.setReady(true));
     }
 
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), players);

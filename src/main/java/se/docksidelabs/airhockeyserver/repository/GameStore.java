@@ -125,6 +125,17 @@ public class GameStore {
         .toString();
   }
 
+  public synchronized void setPlayerReady(Player player, boolean ready) {
+    players.stream().filter(player::equals).findFirst().ifPresent(p -> p.setReady(ready));
+
+    // In AI mode, ensure the bot is always ready
+    if (aiMode) {
+      players.stream()
+          .filter(p -> p.getAgency() == Agency.PLAYER_2 && !p.isReady())
+          .forEach(p -> p.setReady(true));
+    }
+  }
+
   public synchronized void togglePlayerReadiness(Player player) {
     players.stream().filter(player::equals).findFirst().ifPresent(Player::toggleReady);
 

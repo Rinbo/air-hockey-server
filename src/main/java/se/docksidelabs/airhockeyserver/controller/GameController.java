@@ -127,15 +127,17 @@ public class GameController {
   }
 
   @MessageMapping("/game/{id}/toggle-ready")
-  public void toggleReady(@DestinationVariable String id, SimpMessageHeaderAccessor header) {
+  public void toggleReady(@DestinationVariable String id, @Payload String readyPayload,
+      SimpMessageHeaderAccessor header) {
     AuthRecord authRecord = gameValidator.validateUser(header, id);
     GameId gameId = authRecord.gameId();
     Username username = authRecord.username();
 
-    gameService.toggleReady(gameId, username);
+    boolean ready = Boolean.parseBoolean(readyPayload);
+    gameService.setReady(gameId, username, ready);
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(id), gameService.getPlayers(gameId));
     messagingTemplate.convertAndSend(TopicUtils.createChatTopic(id),
-        TopicUtils.createBotMessage(createReadinessMessage(gameId, username)));
+        TopicUtils.createBotMessage(createReadinessMessage(username, ready)));
     countdownService.handleBothPlayersReady(gameId, username);
   }
 
@@ -151,11 +153,10 @@ public class GameController {
     gameService.getGameStore(gameId).ifPresent(gameStore -> gameStore.updateHandle(position, agency));
   }
 
-  private String createReadinessMessage(GameId gameId, Username username) {
-    return gameService.getPlayer(gameId, username)
-        .map(player -> player.isReady() ? AppUtils.format("%s is ready", username.getTrimmed())
-            : AppUtils.format("%s cancelled readiness", username.getTrimmed()))
-        .orElseThrow();
+  private static String createReadinessMessage(Username username, boolean ready) {
+    return ready
+        ? AppUtils.format("%s is ready", username.getTrimmed())
+        : AppUtils.format("%s cancelled readiness", username.getTrimmed());
   }
 
   private List<Game> getGameList() {

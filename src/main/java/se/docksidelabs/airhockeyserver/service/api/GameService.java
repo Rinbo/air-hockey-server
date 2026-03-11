@@ -28,5 +28,7 @@ public interface GameService {
 
   void removeUser(GameId gameId, Username username);
 
+  void setReady(GameId gameId, Username userName, boolean ready);
+
   void toggleReady(GameId gameId, Username userName);
 }

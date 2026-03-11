@@ -99,6 +99,10 @@ public class Player {
         .toString();
   }
 
+  public void setReady(boolean ready) {
+    this.ready = ready;
+  }
+
   public void toggleReady() {
     ready = !ready;
   }

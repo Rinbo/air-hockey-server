@@ -87,6 +87,13 @@ public class GameServiceImpl implements GameService {
   }
 
   @Override
+  public void setReady(GameId gameId, Username userName, boolean ready) {
+    getGameStore(gameId)
+        .ifPresent(gameStore -> gameStore.getPlayer(userName)
+            .ifPresent(player -> gameStore.setPlayerReady(player, ready)));
+  }
+
+  @Override
   public void toggleReady(GameId gameId, Username userName) {
     getGameStore(gameId)
         .ifPresent(gameStore -> gameStore.getPlayer(userName)

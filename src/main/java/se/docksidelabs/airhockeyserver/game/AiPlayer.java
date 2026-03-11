@@ -7,164 +7,178 @@ import se.docksidelabs.airhockeyserver.game.properties.Position;
 
 /**
  * Server-side AI opponent that controls Player 2's handle.
- * Called each frame from {@link GameRunnable} to compute the AI handle
- * position.
  *
- * <p>
- * Strategy:
+ * <p>Strategy:
  * <ul>
- * <li>Track the puck laterally (X axis)</li>
- * <li>Move aggressively toward the puck when it's in the AI's half (y &lt;
- * 0.5)</li>
- * <li>Hold a defensive position when the puck is in the opponent's half</li>
- * <li>Smooth movement via linear interpolation to prevent teleporting</li>
+ *   <li>Track the puck laterally (X axis)</li>
+ *   <li>Attack aggressively when the puck is in the AI's half (y &lt; 0.5)</li>
+ *   <li>Hold a defensive position when the puck is in the opponent's half</li>
+ *   <li>Smooth movement via linear interpolation to prevent teleporting</li>
+ *   <li>Avoid chasing the puck into side walls (handle is wider than puck)</li>
  * </ul>
  *
- * <p>
- * Coordinates are in Player 1's frame (top=0, bottom=1). Player 2's handle
- * occupies the top half (y ≤ 0.5). The AI's "home" position is near its goal.
+ * <p>Coordinates are in Player 1's frame (top=0, bottom=1). Player 2's
+ * handle occupies the top half (y ≤ 0.5).
  */
 public final class AiPlayer {
-    private static final double DEFENSIVE_Y = 0.15;
-    private static final double ATTACK_THRESHOLD_Y = 0.45;
-    // Lerp factor per tick — frame-rate-independent.
-    // Original tuning: 0.12 at 50 FPS. Adjusted: 1 - (1-0.12)^(50/60) ≈ 0.1007
-    private static final double LERP_SPEED = 1.0 - Math.pow(1.0 - 0.12, 50.0 / GameConstants.FRAME_RATE);
-    private static final double MAX_Y = 0.48;
-    private static final double MIN_Y = GameConstants.HANDLE_RADIUS.y();
-    private static final double MIN_X = GameConstants.HANDLE_RADIUS.x();
-    private static final double MAX_X = 1.0 - GameConstants.HANDLE_RADIUS.x();
 
-    // Wall proximity threshold — when the puck is this close to a side wall,
-    // the AI offsets its approach to push the puck toward center.
-    private static final double WALL_MARGIN = GameConstants.PUCK_RADIUS.x() + GameConstants.HANDLE_RADIUS.x() + 0.02;
+  private static final double DEFENSIVE_Y = 0.15;
+  private static final double ATTACK_THRESHOLD_Y = 0.45;
 
-    // Trapped-puck detection — only fires when the AI is sandwiching
-    // the puck against a wall (puck stopped + touching wall + AI close).
-    private static final double STUCK_SPEED_THRESHOLD = 0.005;
-    private static final double STUCK_DISTANCE_THRESHOLD = GameConstants.PUCK_HANDLE_MIN_DISTANCE + 0.04;
+  // Lerp factor per tick — frame-rate-independent.
+  // Original tuning: 0.12 at 50 FPS. Adjusted: 1 - (1-0.12)^(50/60) ≈ 0.1007
+  private static final double LERP_SPEED = 1.0 - Math.pow(1.0 - 0.12, 50.0 / GameConstants.FRAME_RATE);
 
-    private AiPlayer() {
-        throw new IllegalStateException("Utility class");
+  private static final double MAX_Y = 0.48;
+  private static final double MIN_Y = GameConstants.HANDLE_RADIUS.y();
+  private static final double MIN_X = GameConstants.HANDLE_RADIUS.x();
+  private static final double MAX_X = 1.0 - GameConstants.HANDLE_RADIUS.x();
+
+  // When puck is this close to a side wall, the AI holds center X
+  // instead of chasing — the handle can't fit between puck and wall.
+  private static final double WALL_MARGIN =
+      GameConstants.PUCK_RADIUS.x() + GameConstants.HANDLE_RADIUS.x() + 0.02;
+
+  // Trapped-puck detection — only fires when the AI is sandwiching
+  // the puck against a wall (puck stopped + touching wall + AI close).
+  private static final double STUCK_SPEED_THRESHOLD = 0.005;
+  private static final double STUCK_DISTANCE_THRESHOLD =
+      GameConstants.PUCK_HANDLE_MIN_DISTANCE + 0.04;
+
+  // When the puck is closer to the goal than this, approach from below
+  // instead of behind to avoid pushing it into the top wall.
+  private static final double TOP_WALL_DANGER_ZONE =
+      GameConstants.PUCK_RADIUS.y() + GameConstants.HANDLE_RADIUS.y() + 0.03;
+
+  // Wall proximity tolerance for isPuckAgainstWall check
+  private static final double WALL_TOLERANCE = 0.005;
+
+  private AiPlayer() {
+    throw new IllegalStateException("Utility class");
+  }
+
+  /**
+   * Computes and applies the new AI handle position for the current frame.
+   */
+  public static void tick(BoardState boardState) {
+    Handle handle = boardState.playerTwo();
+    Puck puck = boardState.puck();
+    Position puckPosition = puck.getPosition();
+    Position currentPosition = handle.getPosition();
+
+    if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION)) {
+      handle.setPosition(lerp(currentPosition, 0.5, DEFENSIVE_Y));
+      return;
     }
 
-    /**
-     * Computes the new AI handle position for the current frame.
-     *
-     * @param boardState the current board state
-     */
-    public static void tick(BoardState boardState) {
-        Handle handle = boardState.playerTwo();
-        Puck puck = boardState.puck();
-        Position puckPos = puck.getPosition();
-        Position currentPos = handle.getPosition();
+    double puckSpeed = magnitude(puck.getSpeedX(), puck.getSpeedY());
+    double distanceToPuck = distance(currentPosition, puckPosition);
 
-        // Ignore puck when it's off-board (after scoring)
-        if (puckPos.equals(GameConstants.OFF_BOARD_POSITION)) {
-            // Move back to center defense
-            double targetX = 0.5;
-            double targetY = DEFENSIVE_Y;
-            handle.setPosition(lerp(currentPos, targetX, targetY));
-            return;
-        }
-
-        // --- Trapped-puck retreat ---
-        // Only disengage when the AI is actively sandwiching the puck
-        // against a wall. A puck sitting in open space (e.g. after reset)
-        // must NOT trigger a retreat.
-        double puckSpeed = Math.sqrt(puck.getSpeedX() * puck.getSpeedX()
-                + puck.getSpeedY() * puck.getSpeedY());
-        double distToPuck = Math.sqrt(
-                (currentPos.x() - puckPos.x()) * (currentPos.x() - puckPos.x())
-                        + (currentPos.y() - puckPos.y()) * (currentPos.y() - puckPos.y()));
-
-        if (puckSpeed < STUCK_SPEED_THRESHOLD
-                && distToPuck < STUCK_DISTANCE_THRESHOLD
-                && isPuckAgainstWall(puckPos)) {
-            // Puck is trapped against a wall — back away to release it
-            handle.setPosition(lerp(currentPos, 0.5, DEFENSIVE_Y));
-            return;
-        }
-
-        // --- Stationary puck in open space ---
-        // The puck has stopped but is NOT against a wall (e.g. friction brought
-        // it to zero mid-field).  Aim directly at the puck so the AI handle
-        // collides with it and puts it back into play.  Without this the normal
-        // "position behind" offset causes the AI to hover near the puck
-        // without ever touching it.
-        if (puckSpeed < STUCK_SPEED_THRESHOLD
-                && puckPos.y() < ATTACK_THRESHOLD_Y) {
-            double targetX = Math.max(MIN_X, Math.min(MAX_X, puckPos.x()));
-            double targetY = Math.max(MIN_Y, Math.min(MAX_Y, puckPos.y()));
-            handle.setPosition(lerp(currentPos, targetX, targetY));
-            return;
-        }
-
-        double targetX;
-        double targetY;
-
-        if (puckPos.y() < ATTACK_THRESHOLD_Y) {
-            // Puck is in AI's half — attack it.
-            targetX = puckPos.x();
-
-            // Default: approach from behind (closer to own goal)
-            targetY = Math.max(MIN_Y, puckPos.y() - GameConstants.HANDLE_RADIUS.y());
-
-            // Near TOP wall: the puck is close to our goal edge. Don't get
-            // behind it (that pushes it into the wall). Instead approach from
-            // BELOW (higher Y) to push it toward the opponent.
-            double topWallMargin = GameConstants.PUCK_RADIUS.y() + GameConstants.HANDLE_RADIUS.y() + 0.03;
-            if (puckPos.y() < topWallMargin) {
-                targetY = puckPos.y() + GameConstants.HANDLE_RADIUS.y();
-            }
-
-            // Near SIDE walls: DON'T chase the puck to the wall.
-            // The handle (radius 0.09) is wider than the puck (radius 0.06),
-            // so it can never fit between puck and wall — any contact near
-            // a wall pushes the puck INTO the wall.  Instead, hold center X
-            // and wait for the puck to bounce back into open space.
-            if (puckPos.x() < WALL_MARGIN || puckPos.x() > 1.0 - WALL_MARGIN) {
-                targetX = 0.5;
-            }
-        } else {
-            // Puck is in opponent's half — hold defensive position, track X loosely
-            targetX = puckPos.x();
-            targetY = DEFENSIVE_Y;
-        }
-
-        // Clamp to valid bounds
-        targetX = Math.max(MIN_X, Math.min(MAX_X, targetX));
-        targetY = Math.max(MIN_Y, Math.min(MAX_Y, targetY));
-
-        handle.setPosition(lerp(currentPos, targetX, targetY));
+    if (isPuckTrappedAgainstWall(puckPosition, puckSpeed, distanceToPuck)) {
+      handle.setPosition(lerp(currentPosition, 0.5, DEFENSIVE_Y));
+      return;
     }
 
-    /**
-     * Returns {@code true} when the puck is touching (or nearly touching) a
-     * wall boundary. Used to distinguish a genuinely trapped puck from one
-     * that is simply stationary in open space (e.g. after a goal reset).
-     */
-    private static boolean isPuckAgainstWall(Position puckPos) {
-        double px = puckPos.x();
-        double py = puckPos.y();
-        double rx = GameConstants.PUCK_RADIUS.x();
-        double ry = GameConstants.PUCK_RADIUS.y();
-        double tolerance = 0.005;
-
-        // Near left or right wall
-        if (px - rx <= tolerance || px + rx >= 1.0 - tolerance) return true;
-
-        // Near top wall (only outside the goal opening)
-        boolean inGoalZone = px >= 0.5 - GameConstants.GOAL_WIDTH
-                          && px <= 0.5 + GameConstants.GOAL_WIDTH;
-        if (!inGoalZone && py - ry <= tolerance) return true;
-
-        return false;
+    if (isStationaryPuckInOpenSpace(puckPosition, puckSpeed)) {
+      handle.setPosition(lerp(currentPosition,
+          clampX(puckPosition.x()),
+          clampY(puckPosition.y())));
+      return;
     }
 
-    private static Position lerp(Position current, double targetX, double targetY) {
-        double newX = current.x() + (targetX - current.x()) * LERP_SPEED;
-        double newY = current.y() + (targetY - current.y()) * LERP_SPEED;
-        return new Position(newX, newY);
+    Position target = computeTargetPosition(puckPosition);
+    handle.setPosition(lerp(currentPosition, target.x(), target.y()));
+  }
+
+  // ── Strategy ─────────────────────────────────────────────────────
+
+  private static Position computeTargetPosition(Position puckPosition) {
+    double targetX;
+    double targetY;
+
+    if (puckPosition.y() < ATTACK_THRESHOLD_Y) {
+      targetX = computeAttackX(puckPosition);
+      targetY = computeAttackY(puckPosition);
+    } else {
+      targetX = puckPosition.x();
+      targetY = DEFENSIVE_Y;
     }
+
+    return new Position(clampX(targetX), clampY(targetY));
+  }
+
+  private static double computeAttackX(Position puckPosition) {
+    boolean nearSideWall = puckPosition.x() < WALL_MARGIN
+        || puckPosition.x() > 1.0 - WALL_MARGIN;
+
+    return nearSideWall ? 0.5 : puckPosition.x();
+  }
+
+  private static double computeAttackY(Position puckPosition) {
+    if (puckPosition.y() < TOP_WALL_DANGER_ZONE) {
+      // Near goal edge — approach from below to push puck toward opponent
+      return puckPosition.y() + GameConstants.HANDLE_RADIUS.y();
+    }
+
+    // Default — position behind puck (closer to own goal)
+    return Math.max(MIN_Y, puckPosition.y() - GameConstants.HANDLE_RADIUS.y());
+  }
+
+  // ── Stuck Detection ──────────────────────────────────────────────
+
+  private static boolean isPuckTrappedAgainstWall(Position puckPosition,
+                                                   double puckSpeed,
+                                                   double distanceToPuck) {
+    return puckSpeed < STUCK_SPEED_THRESHOLD
+        && distanceToPuck < STUCK_DISTANCE_THRESHOLD
+        && isPuckAgainstWall(puckPosition);
+  }
+
+  private static boolean isStationaryPuckInOpenSpace(Position puckPosition,
+                                                      double puckSpeed) {
+    return puckSpeed < STUCK_SPEED_THRESHOLD
+        && puckPosition.y() < ATTACK_THRESHOLD_Y;
+  }
+
+  private static boolean isPuckAgainstWall(Position puckPosition) {
+    double puckX = puckPosition.x();
+    double puckY = puckPosition.y();
+    double radiusX = GameConstants.PUCK_RADIUS.x();
+    double radiusY = GameConstants.PUCK_RADIUS.y();
+
+    if (puckX - radiusX <= WALL_TOLERANCE || puckX + radiusX >= 1.0 - WALL_TOLERANCE) {
+      return true;
+    }
+
+    boolean inGoalZone = puckX >= 0.5 - GameConstants.GOAL_WIDTH
+        && puckX <= 0.5 + GameConstants.GOAL_WIDTH;
+
+    return !inGoalZone && puckY - radiusY <= WALL_TOLERANCE;
+  }
+
+  // ── Math Utilities ───────────────────────────────────────────────
+
+  private static Position lerp(Position current, double targetX, double targetY) {
+    double newX = current.x() + (targetX - current.x()) * LERP_SPEED;
+    double newY = current.y() + (targetY - current.y()) * LERP_SPEED;
+    return new Position(newX, newY);
+  }
+
+  private static double clampX(double x) {
+    return Math.max(MIN_X, Math.min(MAX_X, x));
+  }
+
+  private static double clampY(double y) {
+    return Math.max(MIN_Y, Math.min(MAX_Y, y));
+  }
+
+  private static double magnitude(double x, double y) {
+    return Math.sqrt(x * x + y * y);
+  }
+
+  private static double distance(Position a, Position b) {
+    double dx = a.x() - b.x();
+    double dy = a.y() - b.y();
+    return Math.sqrt(dx * dx + dy * dy);
+  }
 }

@@ -3,7 +3,6 @@ package se.docksidelabs.airhockeyserver.game;
 import java.util.EnumSet;
 import java.util.Objects;
 import java.util.concurrent.locks.LockSupport;
-import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,121 +18,91 @@ import se.docksidelabs.airhockeyserver.model.GameId;
 import se.docksidelabs.airhockeyserver.repository.GameStoreConnector;
 
 class GameRunnable implements Runnable {
-  private static final long FRAME_DURATION_NS = 1_000_000_000L / GameConstants.FRAME_RATE;
+
+  private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
+
+  // ── Timing ───────────────────────────────────────────────────────
+  private static final long NANOS_PER_SECOND = 1_000_000_000L;
+  private static final long FRAME_DURATION_NS = NANOS_PER_SECOND / GameConstants.FRAME_RATE;
   private static final long GAME_DURATION_NS = GameConstants.GAME_DURATION.toNanos();
   private static final long PUCK_RESET_DURATION_NS = GameConstants.PUCK_RESET_DURATION.toNanos();
-  // Grace period at the start of a game — board state is broadcast so
-  // clients can connect and see starting positions, but physics and AI
-  // are frozen.  Prevents the AI from playing before the human's client
-  // has finished its WebSocket handshake.
-  private static final long WARMUP_DURATION_NS = 1_000_000_000L;
+  private static final long WARMUP_DURATION_NS = NANOS_PER_SECOND;
+
+  // ── Physics ──────────────────────────────────────────────────────
   private static final int SUB_STEPS = 4;
-  private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
+  private static final double GEOMETRIC_EPSILON = 1e-12;
+  private static final double SEPARATION_NUDGE = 1e-6;
+
+  // Consecutive handle-collision ticks after which we suppress
+  // bounce impulse (resting contact) and collision sound events.
+  private static final int RESTING_CONTACT_IMPULSE_THRESHOLD = 3;
+  private static final int RESTING_CONTACT_SOUND_THRESHOLD = 2;
+
+  // ── Dependencies ─────────────────────────────────────────────────
   private final boolean aiMode;
   private final BoardState boardState;
-  private final BroadcastState p1State = new BroadcastState();
-  private final BroadcastState p2State = new BroadcastState();
+  private final BroadcastState playerOneBroadcast = new BroadcastState();
+  private final BroadcastState playerTwoBroadcast = new BroadcastState();
   private final GameId gameId;
   private final GameStoreConnector gameStoreConnector;
 
-  // Puck reset state: when > 0, the puck is waiting to be placed back on the
-  // board
+  // ── Per-round state ──────────────────────────────────────────────
   private long puckResetRemainingNs;
   private Position puckResetTarget;
 
-  // Collision event for the current frame (reset each tick)
+  // ── Per-tick state ───────────────────────────────────────────────
   private int currentCollisionEvent = BroadcastState.NO_EVENT;
-
-  // Consecutive ticks with a handle collision — used to decay restitution
-  // so a puck pressed against a wall comes to rest instead of vibrating.
   private int consecutiveHandleCollisionTicks;
 
-  public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector, boolean aiMode) {
-    Objects.requireNonNull(boardState, "boardState must not be null");
-    Objects.requireNonNull(gameId, "gameId must not be null");
-    Objects.requireNonNull(gameStoreConnector, "gameStoreController must not be null");
-
+  GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector, boolean aiMode) {
+    this.boardState = Objects.requireNonNull(boardState, "boardState must not be null");
+    this.gameId = Objects.requireNonNull(gameId, "gameId must not be null");
+    this.gameStoreConnector = Objects.requireNonNull(gameStoreConnector, "gameStoreConnector must not be null");
     this.aiMode = aiMode;
-    this.boardState = boardState;
-    this.gameStoreConnector = gameStoreConnector;
-    this.gameId = gameId;
   }
 
-  /**
-   * Minimum distance between point P and line segment AB in physical space.
-   */
-  private static double segmentPointDistance(
-      double px, double py, double ax, double ay, double bx, double by) {
-    double abx = bx - ax, aby = by - ay;
-    double apx = px - ax, apy = py - ay;
-    double ab2 = abx * abx + aby * aby;
-
-    if (ab2 < 1e-12) {
-      return Math.sqrt(apx * apx + apy * apy);
-    }
-
-    double t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / ab2));
-    double dx = ax + t * abx - px;
-    double dy = ay + t * aby - py;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
-  private static boolean isBottomWallHit(Position puckPosition) {
-    return puckPosition.y() + GameConstants.PUCK_RADIUS.y() >= 1 &&
-        (puckPosition.x() < 0.5 - GameConstants.GOAL_WIDTH ||
-            puckPosition.x() > 0.5 + GameConstants.GOAL_WIDTH);
-  }
-
-  private static boolean isTopWallHit(Position puckPosition) {
-    return puckPosition.y() - GameConstants.PUCK_RADIUS.y() <= 0 &&
-        (puckPosition.x() < 0.5 - GameConstants.GOAL_WIDTH ||
-            puckPosition.x() > 0.5 + GameConstants.GOAL_WIDTH);
-  }
-
-  /**
-   * Checks if the puck collides with the handle's swept path (previous → current
-   * position). This prevents fast-moving handles from passing through the puck.
-   */
-  private static boolean puckHandleCollision(Position puckPosition, Handle handle) {
-    double px = puckPosition.x();
-    double py = PhysicsSpace.toPhysicalY(puckPosition.y());
-    Position curr = handle.getPosition();
-    Position prev = handle.getPreviousPosition();
-
-    return segmentPointDistance(px, py,
-        prev.x(), PhysicsSpace.toPhysicalY(prev.y()),
-        curr.x(), PhysicsSpace.toPhysicalY(curr.y())) <= GameConstants.PUCK_HANDLE_MIN_DISTANCE;
-  }
+  // ════════════════════════════════════════════════════════════════
+  //  Game Loop
+  // ════════════════════════════════════════════════════════════════
 
   @Override
   public void run() {
     logger.info("Starting game loop: {}", gameId);
 
-    // ── Warmup phase ────────────────────────────────────────────────
-    // Broadcast the initial board state at 60 Hz so clients can connect
-    // their binary WebSocket and see all objects in starting position.
-    // Physics / AI are frozen during this window.
+    runWarmupPhase();
+    runMainPhase();
+
+    logger.info("Exiting game loop: {}", gameId);
+  }
+
+  /**
+   * Broadcasts the initial board state at 60 Hz so clients can connect
+   * and see starting positions. Physics and AI are frozen.
+   */
+  private void runWarmupPhase() {
     long warmupStartNs = System.nanoTime();
+    long fullGameSeconds = GAME_DURATION_NS / NANOS_PER_SECOND;
+
     while (!Thread.currentThread().isInterrupted()) {
-      long now = System.nanoTime();
-      if (now - warmupStartNs >= WARMUP_DURATION_NS) break;
+      long frameStartNs = System.nanoTime();
+      if (frameStartNs - warmupStartNs >= WARMUP_DURATION_NS) {
+        break;
+      }
 
-      long remainingSeconds = GAME_DURATION_NS / 1_000_000_000L;
-      broadcast(remainingSeconds);
-
-      long sleepNs = FRAME_DURATION_NS - (System.nanoTime() - now);
-      if (sleepNs > 0) LockSupport.parkNanos(sleepNs);
+      broadcast(fullGameSeconds);
+      sleepUntilNextFrame(frameStartNs);
     }
+  }
 
-    // ── Main game loop ──────────────────────────────────────────────
+  private void runMainPhase() {
     long gameStartNs = System.nanoTime();
     long previousFrameNs = gameStartNs;
 
     while (!Thread.currentThread().isInterrupted()) {
-      long now = System.nanoTime();
-      long elapsedSinceStart = now - gameStartNs;
-      long frameDelta = now - previousFrameNs;
-      previousFrameNs = now;
+      long frameStartNs = System.nanoTime();
+      long elapsedSinceStart = frameStartNs - gameStartNs;
+      long frameDelta = frameStartNs - previousFrameNs;
+      previousFrameNs = frameStartNs;
 
       if (elapsedSinceStart >= GAME_DURATION_NS) {
         gameStoreConnector.gameComplete();
@@ -141,120 +110,428 @@ class GameRunnable implements Runnable {
         break;
       }
 
-      // Tick puck reset timer
-      if (puckResetRemainingNs > 0) {
-        puckResetRemainingNs -= frameDelta;
-        if (puckResetRemainingNs <= 0) {
-          boardState.puck().setPosition(puckResetTarget);
-          puckResetTarget = null;
-        }
-      }
+      tickPuckReset(frameDelta);
 
       if (aiMode) {
         AiPlayer.tick(boardState);
       }
 
-      // Sub-stepped physics: detect + resolve collisions BEFORE moving the puck,
-      // so overlaps are resolved at the current position rather than deepened.
-      currentCollisionEvent = BroadcastState.NO_EVENT;
-      boolean hadHandleCollision = false;
-      for (int i = 0; i < SUB_STEPS; i++) {
-        EnumSet<Collision> collisions = detectCollisions();
-        handleCollisions(collisions);
-        currentCollisionEvent |= collisionsToEvent(collisions);
-        if (collisions.contains(Collision.P1_HANDLE) || collisions.contains(Collision.P2_HANDLE)) {
-          hadHandleCollision = true;
-        }
-        boardState.puck().onSubTick(SUB_STEPS);
-      }
-      if (hadHandleCollision) {
-        consecutiveHandleCollisionTicks++;
-      } else {
-        consecutiveHandleCollisionTicks = 0;
-      }
-      // Suppress ALL collision sound events after the puck enters resting
-      // contact (pressed against a wall by handle). In a corner the puck
-      // triggers both HANDLE_HIT and WALL_HIT every sub-step, so we must
-      // silence everything — the first 2 ticks (~33ms) still play the
-      // initial impact sound.
-      if (consecutiveHandleCollisionTicks > 2) {
-        currentCollisionEvent = BroadcastState.NO_EVENT;
-      }
+      runSubSteppedPhysics();
       updateHandleSpeeds();
 
-      long remainingSeconds = (GAME_DURATION_NS - elapsedSinceStart) / 1_000_000_000L;
+      long remainingSeconds = (GAME_DURATION_NS - elapsedSinceStart) / NANOS_PER_SECOND;
       broadcast(remainingSeconds);
-
-      // Park for the remaining frame time
-      long sleepNs = FRAME_DURATION_NS - (System.nanoTime() - now);
-      if (sleepNs > 0) {
-        LockSupport.parkNanos(sleepNs);
-      }
+      sleepUntilNextFrame(frameStartNs);
     }
-
-    logger.info("exiting game loop: {}", gameId);
   }
 
+  private void sleepUntilNextFrame(long frameStartNs) {
+    long sleepNs = FRAME_DURATION_NS - (System.nanoTime() - frameStartNs);
+    if (sleepNs > 0) {
+      LockSupport.parkNanos(sleepNs);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  Puck Reset
+  // ════════════════════════════════════════════════════════════════
+
+  private void tickPuckReset(long frameDeltaNs) {
+    if (puckResetRemainingNs <= 0) {
+      return;
+    }
+
+    puckResetRemainingNs -= frameDeltaNs;
+
+    if (puckResetRemainingNs <= 0) {
+      boardState.puck().setPosition(puckResetTarget);
+      puckResetTarget = null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  Sub-stepped Physics
+  // ════════════════════════════════════════════════════════════════
+
+  /**
+   * Runs collision detection and resolution before moving the puck,
+   * preventing overlaps from deepening. Tracks resting contact to
+   * suppress bounce impulse and collision sounds.
+   */
+  private void runSubSteppedPhysics() {
+    currentCollisionEvent = BroadcastState.NO_EVENT;
+    boolean anyHandleCollision = false;
+
+    for (int step = 0; step < SUB_STEPS; step++) {
+      EnumSet<Collision> collisions = detectCollisions();
+      handleCollisions(collisions);
+      currentCollisionEvent |= toEventMask(collisions);
+
+      if (collisions.contains(Collision.P1_HANDLE) || collisions.contains(Collision.P2_HANDLE)) {
+        anyHandleCollision = true;
+      }
+
+      boardState.puck().onSubTick(SUB_STEPS);
+    }
+
+    consecutiveHandleCollisionTicks = anyHandleCollision
+        ? consecutiveHandleCollisionTicks + 1
+        : 0;
+
+    if (consecutiveHandleCollisionTicks > RESTING_CONTACT_SOUND_THRESHOLD) {
+      currentCollisionEvent = BroadcastState.NO_EVENT;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  Collision Detection
+  // ════════════════════════════════════════════════════════════════
+
+  /** Package-private for testing. */
   EnumSet<Collision> detectCollisions() {
     Position puckPosition = boardState.puck().getPosition();
 
-    if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION))
+    if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION)) {
       return EnumSet.noneOf(Collision.class);
+    }
+
+    boolean inGoalZoneX = isInGoalZone(puckPosition.x());
+
+    // Goals take absolute priority when puck is fully past an edge
+    if (puckPosition.y() - GameConstants.PUCK_RADIUS.y() > 1) {
+      return EnumSet.of(inGoalZoneX ? Collision.P1_GOAL : Collision.BOTTOM_WALL);
+    }
+    if (puckPosition.y() + GameConstants.PUCK_RADIUS.y() < 0) {
+      return EnumSet.of(inGoalZoneX ? Collision.P2_GOAL : Collision.TOP_WALL);
+    }
 
     EnumSet<Collision> result = EnumSet.noneOf(Collision.class);
-    boolean inGoalZoneX = puckPosition.x() >= 0.5 - GameConstants.GOAL_WIDTH
-        && puckPosition.x() <= 0.5 + GameConstants.GOAL_WIDTH;
 
-    // Puck past bottom edge — goals take absolute priority
-    if (puckPosition.y() - GameConstants.PUCK_RADIUS.y() > 1) {
-      result.add(inGoalZoneX ? Collision.P1_GOAL : Collision.BOTTOM_WALL);
-      return result;
-    }
-    // Puck past top edge
-    if (puckPosition.y() + GameConstants.PUCK_RADIUS.y() < 0) {
-      result.add(inGoalZoneX ? Collision.P2_GOAL : Collision.TOP_WALL);
-      return result;
-    }
-
-    // Walls — independent axes, can fire simultaneously in corners
-    if (isTopWallHit(puckPosition))
-      result.add(Collision.TOP_WALL);
-    if (isBottomWallHit(puckPosition))
-      result.add(Collision.BOTTOM_WALL);
-    if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0)
-      result.add(Collision.LEFT_WALL);
-    if ((puckPosition.x() + GameConstants.PUCK_RADIUS.x()) >= 1)
-      result.add(Collision.RIGHT_WALL);
-
-    // Handle collisions — checked after walls so puck is in-bounds
-    if (puckHandleCollision(puckPosition, boardState.playerOne()))
-      result.add(Collision.P1_HANDLE);
-    if (puckHandleCollision(puckPosition, boardState.playerTwo()))
-      result.add(Collision.P2_HANDLE);
+    if (isTouchingTopWall(puckPosition))    result.add(Collision.TOP_WALL);
+    if (isTouchingBottomWall(puckPosition)) result.add(Collision.BOTTOM_WALL);
+    if (isTouchingLeftWall(puckPosition))   result.add(Collision.LEFT_WALL);
+    if (isTouchingRightWall(puckPosition))  result.add(Collision.RIGHT_WALL);
+    if (isTouchingHandle(puckPosition, boardState.playerOne())) result.add(Collision.P1_HANDLE);
+    if (isTouchingHandle(puckPosition, boardState.playerTwo())) result.add(Collision.P2_HANDLE);
 
     return result;
   }
 
+  private static boolean isInGoalZone(double x) {
+    return x >= 0.5 - GameConstants.GOAL_WIDTH
+        && x <= 0.5 + GameConstants.GOAL_WIDTH;
+  }
+
+  private static boolean isTouchingTopWall(Position puck) {
+    return puck.y() - GameConstants.PUCK_RADIUS.y() <= 0
+        && !isInGoalZone(puck.x());
+  }
+
+  private static boolean isTouchingBottomWall(Position puck) {
+    return puck.y() + GameConstants.PUCK_RADIUS.y() >= 1
+        && !isInGoalZone(puck.x());
+  }
+
+  private static boolean isTouchingLeftWall(Position puck) {
+    return puck.x() - GameConstants.PUCK_RADIUS.x() <= 0;
+  }
+
+  private static boolean isTouchingRightWall(Position puck) {
+    return puck.x() + GameConstants.PUCK_RADIUS.x() >= 1;
+  }
+
+  /**
+   * Uses the handle's swept path (previous → current position) for
+   * collision detection, preventing fast-moving handles from tunneling.
+   */
+  private static boolean isTouchingHandle(Position puckPosition, Handle handle) {
+    double puckX = puckPosition.x();
+    double puckY = PhysicsSpace.toPhysicalY(puckPosition.y());
+
+    Position current = handle.getPosition();
+    Position previous = handle.getPreviousPosition();
+
+    double distanceToSweptPath = segmentPointDistance(
+        puckX, puckY,
+        previous.x(), PhysicsSpace.toPhysicalY(previous.y()),
+        current.x(), PhysicsSpace.toPhysicalY(current.y()));
+
+    return distanceToSweptPath <= GameConstants.PUCK_HANDLE_MIN_DISTANCE;
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  Collision Handling
+  // ════════════════════════════════════════════════════════════════
+
+  /** Package-private for testing. */
   void handleCollisions(EnumSet<Collision> collisions) {
     for (Collision collision : collisions) {
       switch (collision) {
-        case LEFT_WALL -> onLeftWallCollision();
-        case RIGHT_WALL -> onRightWallCollision();
-        case TOP_WALL -> onTopWallCollision();
-        case BOTTOM_WALL -> onBottomWallCollision();
-        case P1_HANDLE -> onPuckHandleCollision(BoardState::playerOne);
-        case P2_HANDLE -> onPuckHandleCollision(BoardState::playerTwo);
-        case P1_GOAL -> onPlayerScores(Agency.PLAYER_2);
-        case P2_GOAL -> onPlayerScores(Agency.PLAYER_1);
-        case NO_COLLISION -> logger.debug("no collision");
+        case LEFT_WALL   -> bounceOffLeftWall();
+        case RIGHT_WALL  -> bounceOffRightWall();
+        case TOP_WALL    -> bounceOffTopWall();
+        case BOTTOM_WALL -> bounceOffBottomWall();
+        case P1_HANDLE   -> resolvePuckHandleCollision(boardState.playerOne());
+        case P2_HANDLE   -> resolvePuckHandleCollision(boardState.playerTwo());
+        case P1_GOAL     -> awardGoal(Agency.PLAYER_2);
+        case P2_GOAL     -> awardGoal(Agency.PLAYER_1);
+        case NO_COLLISION -> { }
       }
     }
   }
 
-  private static int collisionsToEvent(EnumSet<Collision> collisions) {
+  // ── Wall Bounces ─────────────────────────────────────────────────
+
+  private void bounceOffLeftWall() {
+    Puck puck = boardState.puck();
+    puck.setPosition(new Position(puck.getRadius().x(), puck.getPosition().y()));
+    puck.setSpeedXY(Math.abs(puck.getSpeedX()) * GameConstants.WALL_RESTITUTION, puck.getSpeedY());
+  }
+
+  private void bounceOffRightWall() {
+    Puck puck = boardState.puck();
+    puck.setPosition(new Position(1 - puck.getRadius().x(), puck.getPosition().y()));
+    puck.setSpeedXY(-Math.abs(puck.getSpeedX()) * GameConstants.WALL_RESTITUTION, puck.getSpeedY());
+  }
+
+  private void bounceOffTopWall() {
+    Puck puck = boardState.puck();
+    puck.setPosition(new Position(puck.getPosition().x(), puck.getRadius().y()));
+    puck.setSpeedXY(puck.getSpeedX(), Math.abs(puck.getSpeedY()) * GameConstants.WALL_RESTITUTION);
+  }
+
+  private void bounceOffBottomWall() {
+    Puck puck = boardState.puck();
+    puck.setPosition(new Position(puck.getPosition().x(), 1 - puck.getRadius().y()));
+    puck.setSpeedXY(puck.getSpeedX(), -Math.abs(puck.getSpeedY()) * GameConstants.WALL_RESTITUTION);
+  }
+
+  // ── Goal Scoring ─────────────────────────────────────────────────
+
+  private void awardGoal(Agency scoringPlayer) {
+    gameStoreConnector.updatePlayerScore(scoringPlayer);
+
+    Puck puck = boardState.puck();
+    puck.setPosition(GameConstants.OFF_BOARD_POSITION);
+    puck.setSpeedXY(0, 0);
+
+    puckResetTarget = (scoringPlayer == Agency.PLAYER_1)
+        ? GameConstants.PUCK_START_P2
+        : GameConstants.PUCK_START_P1;
+    puckResetRemainingNs = PUCK_RESET_DURATION_NS;
+  }
+
+  // ── Handle Collision (main physics routine) ──────────────────────
+
+  private void resolvePuckHandleCollision(Handle handle) {
+    Puck puck = boardState.puck();
+
+    double puckX = puck.getPosition().x();
+    double puckY = PhysicsSpace.toPhysicalY(puck.getPosition().y());
+
+    Position handleCurrent = handle.getPosition();
+    Position handlePrevious = handle.getPreviousPosition();
+
+    double handleCurrentX  = handleCurrent.x();
+    double handleCurrentY  = PhysicsSpace.toPhysicalY(handleCurrent.y());
+    double handlePreviousX = handlePrevious.x();
+    double handlePreviousY = PhysicsSpace.toPhysicalY(handlePrevious.y());
+
+    double handleVelocityX = handleCurrentX - handlePreviousX;
+    double handleVelocityY = handleCurrentY - handlePreviousY;
+
+    double[] collisionNormal = computeCollisionNormal(
+        puckX, puckY, handleCurrentX, handleCurrentY, handlePreviousX, handlePreviousY);
+    double normalX = collisionNormal[0];
+    double normalY = collisionNormal[1];
+
+    double puckVelocityX = puck.getSpeedX();
+    double puckVelocityY = PhysicsSpace.toPhysicalY(puck.getSpeedY());
+
+    double[] impulseResult = applyImpulse(
+        puckVelocityX, puckVelocityY, handleVelocityX, handleVelocityY, normalX, normalY);
+
+    double[] separated = separateFromHandle(puckX, puckY, handleCurrentX, handleCurrentY, normalX, normalY);
+
+    double clampedX = clampToBoardX(separated[0]);
+    double clampedY = clampToBoardY(separated[1], clampedX);
+
+    puck.setPosition(new Position(clampedX, PhysicsSpace.toNormalizedY(clampedY)));
+    puck.setSpeedXY(impulseResult[0], PhysicsSpace.toNormalizedY(impulseResult[1]));
+  }
+
+  // ── Collision Normal ─────────────────────────────────────────────
+
+  /**
+   * Computes the collision normal via ray-circle intersection on the
+   * handle's swept path. Returns {normalX, normalY} as a unit vector
+   * pointing from the contact point toward the puck.
+   */
+  private double[] computeCollisionNormal(
+      double puckX, double puckY,
+      double handleCurrentX, double handleCurrentY,
+      double handlePreviousX, double handlePreviousY) {
+
+    double sweepDx = handleCurrentX - handlePreviousX;
+    double sweepDy = handleCurrentY - handlePreviousY;
+    double sweepLengthSquared = sweepDx * sweepDx + sweepDy * sweepDy;
+
+    double contactX = handleCurrentX;
+    double contactY = handleCurrentY;
+
+    if (sweepLengthSquared >= GEOMETRIC_EPSILON) {
+      double contactT = findFirstContactParameter(
+          puckX, puckY, handlePreviousX, handlePreviousY, sweepDx, sweepDy, sweepLengthSquared);
+      contactX = handlePreviousX + contactT * sweepDx;
+      contactY = handlePreviousY + contactT * sweepDy;
+    }
+
+    double normalX = puckX - contactX;
+    double normalY = puckY - contactY;
+    double normalLength = Math.sqrt(normalX * normalX + normalY * normalY);
+
+    if (normalLength < GEOMETRIC_EPSILON) {
+      return fallbackNormal(sweepDx, sweepDy);
+    }
+
+    return new double[] { normalX / normalLength, normalY / normalLength };
+  }
+
+  /**
+   * Finds the parameter t ∈ [0,1] along the handle's swept segment
+   * where it first enters the puck's collision circle.
+   */
+  private static double findFirstContactParameter(
+      double puckX, double puckY,
+      double segmentStartX, double segmentStartY,
+      double segmentDx, double segmentDy,
+      double segmentLengthSquared) {
+
+    double startToPuckX = segmentStartX - puckX;
+    double startToPuckY = segmentStartY - puckY;
+    double collisionRadius = GameConstants.PUCK_HANDLE_MIN_DISTANCE;
+
+    double quadraticA = segmentLengthSquared;
+    double quadraticB = 2 * (startToPuckX * segmentDx + startToPuckY * segmentDy);
+    double quadraticC = startToPuckX * startToPuckX + startToPuckY * startToPuckY - collisionRadius * collisionRadius;
+
+    double discriminant = quadraticB * quadraticB - 4 * quadraticA * quadraticC;
+
+    if (discriminant < 0) {
+      return Math.clamp(-quadraticB / (2 * quadraticA), 0.0, 1.0);
+    }
+
+    // Smaller root = first entry into the collision zone
+    double firstEntry = (-quadraticB - Math.sqrt(discriminant)) / (2 * quadraticA);
+    return Math.clamp(firstEntry, 0.0, 1.0);
+  }
+
+  private static double[] fallbackNormal(double sweepDx, double sweepDy) {
+    double sweepLength = Math.sqrt(sweepDx * sweepDx + sweepDy * sweepDy);
+    if (sweepLength > GEOMETRIC_EPSILON) {
+      return new double[] { sweepDx / sweepLength, sweepDy / sweepLength };
+    }
+    // Fully degenerate — push puck upward
+    return new double[] { 0, -1 };
+  }
+
+  // ── Impulse ──────────────────────────────────────────────────────
+
+  /**
+   * Applies elastic collision impulse in physical space. If the puck
+   * is in prolonged resting contact (trapped against a wall), the speed
+   * is zeroed instead of bounced. Returns {velocityX, velocityY}.
+   */
+  private double[] applyImpulse(
+      double puckVelocityX, double puckVelocityY,
+      double handleVelocityX, double handleVelocityY,
+      double normalX, double normalY) {
+
+    double relativeNormalVelocity = (puckVelocityX - handleVelocityX) * normalX
+        + (puckVelocityY - handleVelocityY) * normalY;
+
+    if (relativeNormalVelocity >= 0) {
+      return new double[] { puckVelocityX, puckVelocityY };
+    }
+
+    if (consecutiveHandleCollisionTicks > RESTING_CONTACT_IMPULSE_THRESHOLD) {
+      return new double[] { 0, 0 };
+    }
+
+    double impulseFactor = (1 + GameConstants.HANDLE_RESTITUTION) * relativeNormalVelocity;
+    return new double[] {
+        puckVelocityX - impulseFactor * normalX,
+        puckVelocityY - impulseFactor * normalY
+    };
+  }
+
+  // ── Separation ───────────────────────────────────────────────────
+
+  /**
+   * Pushes the puck out of the handle overlap. Full separation is
+   * required because the handle has infinite mass (player-controlled).
+   * Returns {separatedX, separatedY}.
+   */
+  private static double[] separateFromHandle(
+      double puckX, double puckY,
+      double handleX, double handleY,
+      double normalX, double normalY) {
+
+    double separationX = puckX - handleX;
+    double separationY = puckY - handleY;
+    double separationDistance = Math.sqrt(separationX * separationX + separationY * separationY);
+    double minimumDistance = GameConstants.PUCK_HANDLE_MIN_DISTANCE;
+
+    if (separationDistance >= minimumDistance) {
+      return new double[] { puckX, puckY };
+    }
+
+    double directionX;
+    double directionY;
+    if (separationDistance < GEOMETRIC_EPSILON) {
+      directionX = normalX;
+      directionY = normalY;
+    } else {
+      directionX = separationX / separationDistance;
+      directionY = separationY / separationDistance;
+    }
+
+    double overlap = minimumDistance - separationDistance + SEPARATION_NUDGE;
+    return new double[] {
+        puckX + directionX * overlap,
+        puckY + directionY * overlap
+    };
+  }
+
+  // ── Board Clamping ───────────────────────────────────────────────
+
+  private static double clampToBoardX(double physicalX) {
+    double puckRadiusX = GameConstants.PUCK_RADIUS.x();
+    return Math.max(puckRadiusX, Math.min(1.0 - puckRadiusX, physicalX));
+  }
+
+  /**
+   * Clamps Y to board bounds, but allows the puck to pass through
+   * goal openings (no Y clamp when centered in the goal zone).
+   */
+  private static double clampToBoardY(double physicalY, double clampedX) {
+    if (isInGoalZone(clampedX)) {
+      return physicalY;
+    }
+
+    double puckRadiusYPhysical = PhysicsSpace.toPhysicalY(GameConstants.PUCK_RADIUS.y());
+    double maxPhysicalY = PhysicsSpace.toPhysicalY(1.0) - puckRadiusYPhysical;
+    return Math.max(puckRadiusYPhysical, Math.min(maxPhysicalY, physicalY));
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  Event Mapping & Broadcasting
+  // ════════════════════════════════════════════════════════════════
+
+  private static int toEventMask(EnumSet<Collision> collisions) {
     int event = BroadcastState.NO_EVENT;
-    for (Collision c : collisions) {
-      event |= switch (c) {
+    for (Collision collision : collisions) {
+      event |= switch (collision) {
         case LEFT_WALL, RIGHT_WALL, TOP_WALL, BOTTOM_WALL -> BroadcastState.WALL_HIT;
         case P1_HANDLE, P2_HANDLE -> BroadcastState.HANDLE_HIT;
         case P1_GOAL, P2_GOAL -> BroadcastState.GOAL;
@@ -269,184 +546,44 @@ class GameRunnable implements Runnable {
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
 
-    p1State.set(playerTwoHandlePosition, puckPosition, remainingSeconds,
-        currentCollisionEvent);
-    p2State.setMirrored(playerOneHandlePosition, puckPosition, remainingSeconds,
-        currentCollisionEvent);
-    gameStoreConnector.broadcast(p1State, p2State);
-  }
-
-  private void onBottomWallCollision() {
-    Puck puck = boardState.puck();
-    puck.setPosition(new Position(puck.getPosition().x(), 1 - puck.getRadius().y()));
-    puck.setSpeedXY(puck.getSpeedX(), -Math.abs(puck.getSpeedY()) * GameConstants.WALL_RESTITUTION);
-  }
-
-  private void onLeftWallCollision() {
-    Puck puck = boardState.puck();
-    puck.setPosition(new Position(puck.getRadius().x(), puck.getPosition().y()));
-    puck.setSpeedXY(Math.abs(puck.getSpeedX()) * GameConstants.WALL_RESTITUTION, puck.getSpeedY());
-  }
-
-  private void onPlayerScores(Agency player) {
-    gameStoreConnector.updatePlayerScore(player);
-    Puck puck = boardState.puck();
-    puck.setPosition(GameConstants.OFF_BOARD_POSITION);
-    puck.setSpeedXY(0, 0);
-
-    puckResetTarget = player == Agency.PLAYER_1 ? GameConstants.PUCK_START_P2 : GameConstants.PUCK_START_P1;
-    puckResetRemainingNs = PUCK_RESET_DURATION_NS;
-  }
-
-  private void onPuckHandleCollision(Function<BoardState, Handle> handleSelector) {
-    Handle handle = handleSelector.apply(boardState);
-    Puck puck = boardState.puck();
-
-    // --- Physical-space positions ---
-    double pxP = puck.getPosition().x();
-    double pyP = PhysicsSpace.toPhysicalY(puck.getPosition().y());
-
-    Position curr = handle.getPosition();
-    Position prev = handle.getPreviousPosition();
-    double hxP = curr.x();
-    double hyP = PhysicsSpace.toPhysicalY(curr.y());
-    double hpxP = prev.x();
-    double hpyP = PhysicsSpace.toPhysicalY(prev.y());
-
-    // Handle velocity this frame (real movement, not stale)
-    double hvx = hxP - hpxP;
-    double hvy = hyP - hpyP;
-
-    // --- Collision normal via first-contact point ---
-    // Find the earliest point along the handle's swept path (A→B) where it
-    // enters the puck's collision zone (circle of radius r around the puck).
-    // This models the physical moment of first contact, giving a well-defined
-    // normal even when the handle passes straight through the puck center.
-    double dx = hxP - hpxP, dy = hyP - hpyP; // D = B - A
-    double fx = hpxP - pxP, fy = hpyP - pyP; // F = A - P
-    double r = GameConstants.PUCK_HANDLE_MIN_DISTANCE;
-
-    double a = dx * dx + dy * dy;
-    double b = 2 * (fx * dx + fy * dy);
-    double c = fx * fx + fy * fy - r * r;
-
-    double collisionHx, collisionHy;
-    if (a < 1e-12) {
-      // Handle didn't move — use current position
-      collisionHx = hxP;
-      collisionHy = hyP;
-    } else {
-      double disc = b * b - 4 * a * c;
-      double t;
-      if (disc < 0) {
-        // Numerical edge case — fall back to closest point on segment
-        t = Math.max(0, Math.min(1, -b / (2 * a)));
-      } else {
-        // Smaller root = first entry into the collision zone
-        t = (-b - Math.sqrt(disc)) / (2 * a);
-        t = Math.max(0, Math.min(1, t));
-      }
-      collisionHx = hpxP + t * dx;
-      collisionHy = hpyP + t * dy;
-    }
-
-    double nx = pxP - collisionHx;
-    double ny = pyP - collisionHy;
-    double nDist = Math.sqrt(nx * nx + ny * ny);
-
-    if (nDist < 1e-12) {
-      // Still degenerate (handle started exactly on puck center) — use movement
-      // direction
-      double moveMag = Math.sqrt(dx * dx + dy * dy);
-      if (moveMag > 1e-12) {
-        nx = dx / moveMag;
-        ny = dy / moveMag;
-      } else {
-        nx = 0;
-        ny = -1;
-      }
-    } else {
-      nx /= nDist;
-      ny /= nDist;
-    }
-
-    // --- Elastic collision impulse ---
-    double pvx = puck.getSpeedX();
-    double pvy = PhysicsSpace.toPhysicalY(puck.getSpeedY());
-
-    double relVn = (pvx - hvx) * nx + (pvy - hvy) * ny;
-
-    if (relVn < 0) {
-      // Resting contact: if the puck has been in continuous contact with a
-      // handle for several ticks (trapped against a wall), zero its speed
-      // instead of bouncing it. This prevents the visible high-frequency
-      // oscillation and matches real air hockey (puck stops when pressed).
-      if (consecutiveHandleCollisionTicks > 3) {
-        pvx = 0;
-        pvy = 0;
-      } else {
-        double e = GameConstants.HANDLE_RESTITUTION;
-        pvx -= (1 + e) * relVn * nx;
-        pvy -= (1 + e) * relVn * ny;
-      }
-    }
-
-    // --- Separate puck from handle's current position ---
-    // Full separation is required because the handle has infinite mass
-    // (player/AI-controlled). A soft correction (Baumgarte) never converges
-    // when the player keeps pushing the handle back on top of the puck.
-    double sepX = pxP - hxP;
-    double sepY = pyP - hyP;
-    double sepDist = Math.sqrt(sepX * sepX + sepY * sepY);
-    double minDist = GameConstants.PUCK_HANDLE_MIN_DISTANCE;
-
-    if (sepDist < minDist) {
-      if (sepDist < 1e-12) {
-        sepX = nx;
-        sepY = ny;
-      } else {
-        sepX /= sepDist;
-        sepY /= sepDist;
-      }
-      double overlap = minDist - sepDist;
-      pxP += sepX * (overlap + 1e-6);
-      pyP += sepY * (overlap + 1e-6);
-    }
-
-    // --- Clamp to board bounds ---
-    // The separation push may have moved the puck past a wall edge (handle
-    // pressing puck into corner). Clamp so the puck never visually clips
-    // through a wall. Y clamping respects the goal openings.
-    double puckRx = GameConstants.PUCK_RADIUS.x();
-    double puckRyPhys = PhysicsSpace.toPhysicalY(GameConstants.PUCK_RADIUS.y());
-    pxP = Math.max(puckRx, Math.min(1.0 - puckRx, pxP));
-
-    double normalizedX = pxP; // X is the same in both spaces
-    boolean inGoalZone = normalizedX >= 0.5 - GameConstants.GOAL_WIDTH
-        && normalizedX <= 0.5 + GameConstants.GOAL_WIDTH;
-    if (!inGoalZone) {
-      pyP = Math.max(puckRyPhys, Math.min(PhysicsSpace.toPhysicalY(1.0) - puckRyPhys, pyP));
-    }
-
-    // --- Transform back to normalized space ---
-    puck.setPosition(new Position(pxP, PhysicsSpace.toNormalizedY(pyP)));
-    puck.setSpeedXY(pvx, PhysicsSpace.toNormalizedY(pvy));
-  }
-
-  private void onRightWallCollision() {
-    Puck puck = boardState.puck();
-    puck.setPosition(new Position(1 - puck.getRadius().x(), puck.getPosition().y()));
-    puck.setSpeedXY(-Math.abs(puck.getSpeedX()) * GameConstants.WALL_RESTITUTION, puck.getSpeedY());
-  }
-
-  private void onTopWallCollision() {
-    Puck puck = boardState.puck();
-    puck.setPosition(new Position(puck.getPosition().x(), puck.getRadius().y()));
-    puck.setSpeedXY(puck.getSpeedX(), Math.abs(puck.getSpeedY()) * GameConstants.WALL_RESTITUTION);
+    playerOneBroadcast.set(playerTwoHandlePosition, puckPosition, remainingSeconds, currentCollisionEvent);
+    playerTwoBroadcast.setMirrored(playerOneHandlePosition, puckPosition, remainingSeconds, currentCollisionEvent);
+    gameStoreConnector.broadcast(playerOneBroadcast, playerTwoBroadcast);
   }
 
   private void updateHandleSpeeds() {
     boardState.playerOne().updateSpeed();
     boardState.playerTwo().updateSpeed();
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  Geometry Utilities
+  // ════════════════════════════════════════════════════════════════
+
+  /**
+   * Minimum distance between a point and a line segment in 2D space.
+   */
+  private static double segmentPointDistance(
+      double pointX, double pointY,
+      double segmentStartX, double segmentStartY,
+      double segmentEndX, double segmentEndY) {
+
+    double segmentDx = segmentEndX - segmentStartX;
+    double segmentDy = segmentEndY - segmentStartY;
+    double toPointX = pointX - segmentStartX;
+    double toPointY = pointY - segmentStartY;
+    double segmentLengthSquared = segmentDx * segmentDx + segmentDy * segmentDy;
+
+    if (segmentLengthSquared < GEOMETRIC_EPSILON) {
+      return Math.sqrt(toPointX * toPointX + toPointY * toPointY);
+    }
+
+    double projection = Math.clamp(
+        (toPointX * segmentDx + toPointY * segmentDy) / segmentLengthSquared,
+        0.0, 1.0);
+
+    double closestX = segmentStartX + projection * segmentDx - pointX;
+    double closestY = segmentStartY + projection * segmentDy - pointY;
+    return Math.sqrt(closestX * closestX + closestY * closestY);
   }
 }
