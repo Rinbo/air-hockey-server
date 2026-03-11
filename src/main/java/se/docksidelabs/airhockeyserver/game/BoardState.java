@@ -14,7 +14,7 @@ public record BoardState(Puck puck, Handle playerOne, Handle playerTwo, AtomicIn
   public void resetObjects() {
     puck.setPosition(atomicInteger.incrementAndGet() % 2 == 0 ? GameConstants.PUCK_START_P1 : GameConstants.PUCK_START_P2);
     puck.setSpeed(GameConstants.ZERO_SPEED);
-    playerOne.setPosition(GameConstants.HANDLE_START_P1);
-    playerTwo.setPosition(GameConstants.HANDLE_START_P2);
+    playerOne.forcePosition(GameConstants.HANDLE_START_P1);
+    playerTwo.forcePosition(GameConstants.HANDLE_START_P2);
   }
 }

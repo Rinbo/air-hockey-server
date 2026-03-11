@@ -18,6 +18,9 @@ public final class GameConstants {
   public static final Duration GAME_DURATION = Duration.ofSeconds(60);
   public static final double GOAL_WIDTH = 0.18;
   public static final double HANDLE_RESTITUTION = 0.9;
+  // Max handle displacement per update. Prevents teleportation on fast swipes
+  // and acts as server-side anti-cheat. Calibrated to ~5000 px/sec at 60 Hz.
+  public static final double MAX_HANDLE_DISTANCE = 0.08;
   public static final Radius HANDLE_RADIUS = new Radius(0.09, 0.09 * BOARD_ASPECT_RATIO);
   public static final Position HANDLE_START_P1 = new Position(0.5, 0.8);
   public static final Position HANDLE_START_P2 = new Position(0.5, 0.2);

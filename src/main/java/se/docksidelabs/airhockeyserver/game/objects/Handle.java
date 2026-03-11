@@ -41,6 +41,27 @@ public final class Handle extends Circle {
         return new Speed(speedX, speedY);
     }
 
+    @Override
+    public void setPosition(Position position) {
+        Position current = getPosition();
+        double dx = position.x() - current.x();
+        double dy = position.y() - current.y();
+        double dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > GameConstants.MAX_HANDLE_DISTANCE) {
+            double scale = GameConstants.MAX_HANDLE_DISTANCE / dist;
+            position = new Position(current.x() + dx * scale, current.y() + dy * scale);
+        }
+        super.setPosition(position);
+    }
+
+    /**
+     * Set the handle position without velocity clamping.
+     * Used for resets and initialization only.
+     */
+    public void forcePosition(Position position) {
+        super.setPosition(position);
+    }
+
     public void updateSpeed() {
         Position position = super.getPosition();
         speedX = position.x() - previousX;

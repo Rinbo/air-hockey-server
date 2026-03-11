@@ -61,11 +61,20 @@ public final class Puck extends Circle {
   }
 
   public void onTick() {
+    onSubTick(1);
+  }
+
+  /**
+   * Advance the puck by one sub-step. Movement is divided by {@code steps}
+   * and friction is applied as {@code FRICTION_DAMPING^(1/steps)} so that the
+   * total effect over all sub-steps equals a single full tick.
+   */
+  public void onSubTick(int steps) {
     Position position = super.getPosition();
     Radius radius = getRadius();
 
-    movePuck(position);
-    handleFriction();
+    movePuck(position, steps);
+    handleFriction(steps);
     handleStalePuck(position, radius);
   }
 
@@ -92,9 +101,11 @@ public final class Puck extends Circle {
 
   private static final double SPEED_STOP_THRESHOLD = 1e-6;
 
-  private void handleFriction() {
-    this.speedX *= GameConstants.FRICTION_DAMPING;
-    this.speedY *= GameConstants.FRICTION_DAMPING;
+  private void handleFriction(int steps) {
+    double damping = steps == 1 ? GameConstants.FRICTION_DAMPING
+        : Math.pow(GameConstants.FRICTION_DAMPING, 1.0 / steps);
+    this.speedX *= damping;
+    this.speedY *= damping;
     if (Math.abs(speedX) < SPEED_STOP_THRESHOLD)
       speedX = 0;
     if (Math.abs(speedY) < SPEED_STOP_THRESHOLD)
@@ -110,7 +121,7 @@ public final class Puck extends Circle {
     }
   }
 
-  private void movePuck(Position position) {
-    setPosition(new Position(position.x() + speedX, position.y() + speedY));
+  private void movePuck(Position position, int steps) {
+    setPosition(new Position(position.x() + speedX / steps, position.y() + speedY / steps));
   }
 }

@@ -1,5 +1,6 @@
 package se.docksidelabs.airhockeyserver.game;
 
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
@@ -21,6 +22,7 @@ class GameRunnable implements Runnable {
   private static final long FRAME_DURATION_NS = 1_000_000_000L / GameConstants.FRAME_RATE;
   private static final long GAME_DURATION_NS = GameConstants.GAME_DURATION.toNanos();
   private static final long PUCK_RESET_DURATION_NS = GameConstants.PUCK_RESET_DURATION.toNanos();
+  private static final int SUB_STEPS = 4;
   private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
   private final boolean aiMode;
   private final BoardState boardState;
@@ -36,6 +38,10 @@ class GameRunnable implements Runnable {
 
   // Collision event for the current frame (reset each tick)
   private int currentCollisionEvent = BroadcastState.NO_EVENT;
+
+  // Consecutive ticks with a handle collision — used to decay restitution
+  // so a puck pressed against a wall comes to rest instead of vibrating.
+  private int consecutiveHandleCollisionTicks;
 
   public GameRunnable(BoardState boardState, GameId gameId, GameStoreConnector gameStoreConnector, boolean aiMode) {
     Objects.requireNonNull(boardState, "boardState must not be null");
@@ -126,11 +132,32 @@ class GameRunnable implements Runnable {
         AiPlayer.tick(boardState);
       }
 
-      boardState.puck().onTick();
+      // Sub-stepped physics: detect + resolve collisions BEFORE moving the puck,
+      // so overlaps are resolved at the current position rather than deepened.
       currentCollisionEvent = BroadcastState.NO_EVENT;
-      Collision collision = detectCollision();
-      handleCollision(collision);
-      currentCollisionEvent = collisionToEvent(collision);
+      boolean hadHandleCollision = false;
+      for (int i = 0; i < SUB_STEPS; i++) {
+        EnumSet<Collision> collisions = detectCollisions();
+        handleCollisions(collisions);
+        currentCollisionEvent |= collisionsToEvent(collisions);
+        if (collisions.contains(Collision.P1_HANDLE) || collisions.contains(Collision.P2_HANDLE)) {
+          hadHandleCollision = true;
+        }
+        boardState.puck().onSubTick(SUB_STEPS);
+      }
+      if (hadHandleCollision) {
+        consecutiveHandleCollisionTicks++;
+      } else {
+        consecutiveHandleCollisionTicks = 0;
+      }
+      // Suppress ALL collision sound events after the puck enters resting
+      // contact (pressed against a wall by handle). In a corner the puck
+      // triggers both HANDLE_HIT and WALL_HIT every sub-step, so we must
+      // silence everything — the first 2 ticks (~33ms) still play the
+      // initial impact sound.
+      if (consecutiveHandleCollisionTicks > 2) {
+        currentCollisionEvent = BroadcastState.NO_EVENT;
+      }
       updateHandleSpeeds();
 
       long remainingSeconds = (GAME_DURATION_NS - elapsedSinceStart) / 1_000_000_000L;
@@ -146,62 +173,73 @@ class GameRunnable implements Runnable {
     logger.info("exiting game loop: {}", gameId);
   }
 
-  Collision detectCollision() {
+  EnumSet<Collision> detectCollisions() {
     Position puckPosition = boardState.puck().getPosition();
 
     if (puckPosition.equals(GameConstants.OFF_BOARD_POSITION))
-      return Collision.NO_COLLISION;
+      return EnumSet.noneOf(Collision.class);
 
+    EnumSet<Collision> result = EnumSet.noneOf(Collision.class);
     boolean inGoalZoneX = puckPosition.x() >= 0.5 - GameConstants.GOAL_WIDTH
         && puckPosition.x() <= 0.5 + GameConstants.GOAL_WIDTH;
 
-    // Puck past bottom edge
+    // Puck past bottom edge — goals take absolute priority
     if (puckPosition.y() - GameConstants.PUCK_RADIUS.y() > 1) {
-      return inGoalZoneX ? Collision.P1_GOAL : Collision.BOTTOM_WALL;
+      result.add(inGoalZoneX ? Collision.P1_GOAL : Collision.BOTTOM_WALL);
+      return result;
     }
     // Puck past top edge
     if (puckPosition.y() + GameConstants.PUCK_RADIUS.y() < 0) {
-      return inGoalZoneX ? Collision.P2_GOAL : Collision.TOP_WALL;
+      result.add(inGoalZoneX ? Collision.P2_GOAL : Collision.TOP_WALL);
+      return result;
     }
 
+    // Walls — independent axes, can fire simultaneously in corners
     if (isTopWallHit(puckPosition))
-      return Collision.TOP_WALL;
+      result.add(Collision.TOP_WALL);
     if (isBottomWallHit(puckPosition))
-      return Collision.BOTTOM_WALL;
+      result.add(Collision.BOTTOM_WALL);
     if ((puckPosition.x() - GameConstants.PUCK_RADIUS.x()) <= 0)
-      return Collision.LEFT_WALL;
+      result.add(Collision.LEFT_WALL);
     if ((puckPosition.x() + GameConstants.PUCK_RADIUS.x()) >= 1)
-      return Collision.RIGHT_WALL;
-    if (puckHandleCollision(puckPosition, boardState.playerOne()))
-      return Collision.P1_HANDLE;
-    if (puckHandleCollision(puckPosition, boardState.playerTwo()))
-      return Collision.P2_HANDLE;
+      result.add(Collision.RIGHT_WALL);
 
-    return Collision.NO_COLLISION;
+    // Handle collisions — checked after walls so puck is in-bounds
+    if (puckHandleCollision(puckPosition, boardState.playerOne()))
+      result.add(Collision.P1_HANDLE);
+    if (puckHandleCollision(puckPosition, boardState.playerTwo()))
+      result.add(Collision.P2_HANDLE);
+
+    return result;
   }
 
-  void handleCollision(Collision collision) {
-    switch (collision) {
-      case LEFT_WALL -> onLeftWallCollision();
-      case RIGHT_WALL -> onRightWallCollision();
-      case TOP_WALL -> onTopWallCollision();
-      case BOTTOM_WALL -> onBottomWallCollision();
-      case P1_HANDLE -> onPuckHandleCollision(BoardState::playerOne);
-      case P2_HANDLE -> onPuckHandleCollision(BoardState::playerTwo);
-      case P1_GOAL -> onPlayerScores(Agency.PLAYER_2);
-      case P2_GOAL -> onPlayerScores(Agency.PLAYER_1);
-      case NO_COLLISION -> logger.debug("no collision");
-      default -> logger.warn("unknown collision type: {}", collision);
+  void handleCollisions(EnumSet<Collision> collisions) {
+    for (Collision collision : collisions) {
+      switch (collision) {
+        case LEFT_WALL -> onLeftWallCollision();
+        case RIGHT_WALL -> onRightWallCollision();
+        case TOP_WALL -> onTopWallCollision();
+        case BOTTOM_WALL -> onBottomWallCollision();
+        case P1_HANDLE -> onPuckHandleCollision(BoardState::playerOne);
+        case P2_HANDLE -> onPuckHandleCollision(BoardState::playerTwo);
+        case P1_GOAL -> onPlayerScores(Agency.PLAYER_2);
+        case P2_GOAL -> onPlayerScores(Agency.PLAYER_1);
+        case NO_COLLISION -> logger.debug("no collision");
+      }
     }
   }
 
-  private static int collisionToEvent(Collision collision) {
-    return switch (collision) {
-      case LEFT_WALL, RIGHT_WALL, TOP_WALL, BOTTOM_WALL -> BroadcastState.WALL_HIT;
-      case P1_HANDLE, P2_HANDLE -> BroadcastState.HANDLE_HIT;
-      case P1_GOAL, P2_GOAL -> BroadcastState.GOAL;
-      case NO_COLLISION -> BroadcastState.NO_EVENT;
-    };
+  private static int collisionsToEvent(EnumSet<Collision> collisions) {
+    int event = BroadcastState.NO_EVENT;
+    for (Collision c : collisions) {
+      event |= switch (c) {
+        case LEFT_WALL, RIGHT_WALL, TOP_WALL, BOTTOM_WALL -> BroadcastState.WALL_HIT;
+        case P1_HANDLE, P2_HANDLE -> BroadcastState.HANDLE_HIT;
+        case P1_GOAL, P2_GOAL -> BroadcastState.GOAL;
+        case NO_COLLISION -> BroadcastState.NO_EVENT;
+      };
+    }
+    return event;
   }
 
   private void broadcast(long remainingSeconds) {
@@ -319,12 +357,24 @@ class GameRunnable implements Runnable {
     double relVn = (pvx - hvx) * nx + (pvy - hvy) * ny;
 
     if (relVn < 0) {
-      double e = GameConstants.HANDLE_RESTITUTION;
-      pvx -= (1 + e) * relVn * nx;
-      pvy -= (1 + e) * relVn * ny;
+      // Resting contact: if the puck has been in continuous contact with a
+      // handle for several ticks (trapped against a wall), zero its speed
+      // instead of bouncing it. This prevents the visible high-frequency
+      // oscillation and matches real air hockey (puck stops when pressed).
+      if (consecutiveHandleCollisionTicks > 3) {
+        pvx = 0;
+        pvy = 0;
+      } else {
+        double e = GameConstants.HANDLE_RESTITUTION;
+        pvx -= (1 + e) * relVn * nx;
+        pvy -= (1 + e) * relVn * ny;
+      }
     }
 
     // --- Separate puck from handle's current position ---
+    // Full separation is required because the handle has infinite mass
+    // (player/AI-controlled). A soft correction (Baumgarte) never converges
+    // when the player keeps pushing the handle back on top of the puck.
     double sepX = pxP - hxP;
     double sepY = pyP - hyP;
     double sepDist = Math.sqrt(sepX * sepX + sepY * sepY);
@@ -341,6 +391,21 @@ class GameRunnable implements Runnable {
       double overlap = minDist - sepDist;
       pxP += sepX * (overlap + 1e-6);
       pyP += sepY * (overlap + 1e-6);
+    }
+
+    // --- Clamp to board bounds ---
+    // The separation push may have moved the puck past a wall edge (handle
+    // pressing puck into corner). Clamp so the puck never visually clips
+    // through a wall. Y clamping respects the goal openings.
+    double puckRx = GameConstants.PUCK_RADIUS.x();
+    double puckRyPhys = PhysicsSpace.toPhysicalY(GameConstants.PUCK_RADIUS.y());
+    pxP = Math.max(puckRx, Math.min(1.0 - puckRx, pxP));
+
+    double normalizedX = pxP; // X is the same in both spaces
+    boolean inGoalZone = normalizedX >= 0.5 - GameConstants.GOAL_WIDTH
+        && normalizedX <= 0.5 + GameConstants.GOAL_WIDTH;
+    if (!inGoalZone) {
+      pyP = Math.max(puckRyPhys, Math.min(PhysicsSpace.toPhysicalY(1.0) - puckRyPhys, pyP));
     }
 
     // --- Transform back to normalized space ---

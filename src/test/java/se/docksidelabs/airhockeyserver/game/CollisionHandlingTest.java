@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.EnumSet;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,7 +54,7 @@ class CollisionHandlingTest {
                 puck.setSpeedXY(-0.01, 0.005);
                 puck.setPosition(new Position(GameConstants.PUCK_RADIUS.x() - 0.01, 0.5));
 
-                runnable.handleCollision(Collision.LEFT_WALL);
+                runnable.handleCollisions(EnumSet.of(Collision.LEFT_WALL));
 
                 assertEquals(GameConstants.PUCK_RADIUS.x(), puck.getPosition().x(),
                                 "Puck x should be clamped to left wall + radius");
@@ -68,7 +70,7 @@ class CollisionHandlingTest {
                 puck.setSpeedXY(0.01, 0.005);
                 puck.setPosition(new Position(1.0 - GameConstants.PUCK_RADIUS.x() + 0.01, 0.5));
 
-                runnable.handleCollision(Collision.RIGHT_WALL);
+                runnable.handleCollisions(EnumSet.of(Collision.RIGHT_WALL));
 
                 assertEquals(1.0 - GameConstants.PUCK_RADIUS.x(), puck.getPosition().x(),
                                 "Puck x should be clamped to right wall - radius");
@@ -84,7 +86,7 @@ class CollisionHandlingTest {
                 puck.setSpeedXY(0.005, -0.01);
                 puck.setPosition(new Position(0.1, GameConstants.PUCK_RADIUS.y() - 0.01));
 
-                runnable.handleCollision(Collision.TOP_WALL);
+                runnable.handleCollisions(EnumSet.of(Collision.TOP_WALL));
 
                 assertEquals(GameConstants.PUCK_RADIUS.y(), puck.getPosition().y(),
                                 "Puck y should be clamped to top wall + radius");
@@ -100,7 +102,7 @@ class CollisionHandlingTest {
                 puck.setSpeedXY(0.005, 0.01);
                 puck.setPosition(new Position(0.1, 1.0 - GameConstants.PUCK_RADIUS.y() + 0.01));
 
-                runnable.handleCollision(Collision.BOTTOM_WALL);
+                runnable.handleCollisions(EnumSet.of(Collision.BOTTOM_WALL));
 
                 assertEquals(1.0 - GameConstants.PUCK_RADIUS.y(), puck.getPosition().y(),
                                 "Puck y should be clamped to bottom wall - radius");
@@ -117,7 +119,7 @@ class CollisionHandlingTest {
                 puck.setPosition(new Position(GameConstants.PUCK_RADIUS.x() - 0.01, 0.5));
 
                 double yBefore = puck.getSpeedY();
-                runnable.handleCollision(Collision.LEFT_WALL);
+                runnable.handleCollisions(EnumSet.of(Collision.LEFT_WALL));
 
                 assertEquals(yBefore, puck.getSpeedY(), 1e-10,
                                 "Y speed should be unchanged after a left wall bounce");
@@ -131,7 +133,7 @@ class CollisionHandlingTest {
                 Puck puck = boardState.puck();
                 puck.setSpeedXY(0, 0.02);
 
-                runnable.handleCollision(Collision.P1_GOAL);
+                runnable.handleCollisions(EnumSet.of(Collision.P1_GOAL));
 
                 Mockito.verify(connector).updatePlayerScore(Agency.PLAYER_2);
                 assertEquals(GameConstants.OFF_BOARD_POSITION, puck.getPosition(),
@@ -143,7 +145,7 @@ class CollisionHandlingTest {
         @Test
         @DisplayName("P2_GOAL triggers PLAYER_1 score update")
         void player2GoalScoring() {
-                runnable.handleCollision(Collision.P2_GOAL);
+                runnable.handleCollisions(EnumSet.of(Collision.P2_GOAL));
 
                 Mockito.verify(connector).updatePlayerScore(Agency.PLAYER_1);
                 assertEquals(GameConstants.OFF_BOARD_POSITION, boardState.puck().getPosition());
@@ -160,12 +162,12 @@ class CollisionHandlingTest {
                 Puck puck1 = Puck.create(new Position(0.5, 0.5));
                 BoardState bs1 = new BoardState(puck1, Handle.create(GameConstants.HANDLE_START_P1),
                                 Handle.create(GameConstants.HANDLE_START_P2));
-                new GameRunnable(bs1, new GameId("t1"), c1, false).handleCollision(Collision.P1_GOAL);
+                new GameRunnable(bs1, new GameId("t1"), c1, false).handleCollisions(EnumSet.of(Collision.P1_GOAL));
 
                 Puck puck2 = Puck.create(new Position(0.5, 0.5));
                 BoardState bs2 = new BoardState(puck2, Handle.create(GameConstants.HANDLE_START_P1),
                                 Handle.create(GameConstants.HANDLE_START_P2));
-                new GameRunnable(bs2, new GameId("t2"), c2, false).handleCollision(Collision.P2_GOAL);
+                new GameRunnable(bs2, new GameId("t2"), c2, false).handleCollisions(EnumSet.of(Collision.P2_GOAL));
 
                 Mockito.verify(c1).updatePlayerScore(Agency.PLAYER_2);
                 Mockito.verify(c2).updatePlayerScore(Agency.PLAYER_1);
@@ -186,7 +188,7 @@ class CollisionHandlingTest {
                 puck.setPosition(nearHandle);
                 puck.setSpeedXY(0.005, -0.005);
 
-                runnable.handleCollision(Collision.P1_HANDLE);
+                runnable.handleCollisions(EnumSet.of(Collision.P1_HANDLE));
 
                 Speed speedAfter = puck.getSpeed();
                 // Speed should change in some way after a handle collision
@@ -197,17 +199,17 @@ class CollisionHandlingTest {
         // ─── NO_COLLISION ─────────────────────────────────────────────
 
         @Test
-        @DisplayName("NO_COLLISION does not mutate puck state")
+        @DisplayName("Empty collision set does not mutate puck state")
         void noCollisionNoMutation() {
                 Puck puck = boardState.puck();
                 puck.setSpeedXY(0.005, 0.005);
                 Position posBefore = puck.getPosition();
                 Speed speedBefore = puck.getSpeed();
 
-                runnable.handleCollision(Collision.NO_COLLISION);
+                runnable.handleCollisions(EnumSet.noneOf(Collision.class));
 
-                assertEquals(posBefore, puck.getPosition(), "Position should not change on NO_COLLISION");
-                assertEquals(speedBefore, puck.getSpeed(), "Speed should not change on NO_COLLISION");
+                assertEquals(posBefore, puck.getPosition(), "Position should not change on empty collisions");
+                assertEquals(speedBefore, puck.getSpeed(), "Speed should not change on empty collisions");
                 Mockito.verifyNoInteractions(connector);
         }
 }

@@ -42,7 +42,10 @@ class AiPlayerTest {
     @Test
     @DisplayName("AI tracks puck X when puck is in AI half")
     void tracksPuckXInAiHalf() {
-        boardState.puck().setPosition(new Position(0.2, 0.3));
+        // Place puck away from walls to avoid triggering corner avoidance offset
+        // Give it speed so stuck-detection doesn't trigger a retreat
+        boardState.puck().setPosition(new Position(0.35, 0.3));
+        boardState.puck().setSpeedXY(0.005, 0.005);
 
         // Run many ticks to converge
         for (int i = 0; i < 300; i++) {
@@ -50,7 +53,7 @@ class AiPlayerTest {
         }
 
         Position aiPos = boardState.playerTwo().getPosition();
-        assertEquals(0.2, aiPos.x(), 0.05, "AI handle X should converge toward puck X");
+        assertEquals(0.35, aiPos.x(), 0.05, "AI handle X should converge toward puck X");
     }
 
     @Test
@@ -96,5 +99,50 @@ class AiPlayerTest {
         Position aiPos = boardState.playerTwo().getPosition();
         // Should move toward center defense (0.5, 0.15)
         assertEquals(0.5, aiPos.x(), 0.1, "AI should be near center X when puck is off-board");
+    }
+
+    @Test
+    @DisplayName("AI approaches a reset puck (zero speed, open space)")
+    void aiApproachesResetPuck() {
+        // Place puck at PUCK_START_P2 with zero speed — simulates post-goal reset
+        boardState.puck().setPosition(GameConstants.PUCK_START_P2); // (0.5, 0.4)
+        boardState.puck().setSpeedXY(0, 0);
+
+        double initialDist = distance(boardState.playerTwo().getPosition(),
+                GameConstants.PUCK_START_P2);
+
+        for (int i = 0; i < 300; i++) {
+            AiPlayer.tick(boardState);
+        }
+
+        double finalDist = distance(boardState.playerTwo().getPosition(),
+                boardState.puck().getPosition());
+        assertTrue(finalDist < initialDist,
+                "AI should approach the reset puck, not retreat. Initial dist="
+                        + initialDist + " final dist=" + finalDist);
+    }
+
+    @Test
+    @DisplayName("AI holds center when puck is near side wall")
+    void aiDoesNotChasePuckToSideWall() {
+        // Place puck near the left wall with some speed
+        boardState.puck().setPosition(new Position(GameConstants.PUCK_RADIUS.x() + 0.02, 0.3));
+        boardState.puck().setSpeedXY(0.005, 0.005);
+
+        for (int i = 0; i < 300; i++) {
+            AiPlayer.tick(boardState);
+        }
+
+        Position aiPos = boardState.playerTwo().getPosition();
+        // AI should stay near center X, not chase to the wall
+        assertTrue(aiPos.x() > 0.3,
+                "AI should hold near center X when puck is near wall, but AI x="
+                        + aiPos.x());
+    }
+
+    private static double distance(Position a, Position b) {
+        double dx = a.x() - b.x();
+        double dy = a.y() - b.y();
+        return Math.sqrt(dx * dx + dy * dy);
     }
 }

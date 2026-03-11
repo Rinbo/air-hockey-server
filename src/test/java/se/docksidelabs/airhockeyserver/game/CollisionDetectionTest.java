@@ -1,6 +1,9 @@
 package se.docksidelabs.airhockeyserver.game;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.EnumSet;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,28 +58,28 @@ class CollisionDetectionTest {
         @DisplayName("Puck touching left wall → LEFT_WALL")
         void leftWall() {
             Position puckPos = new Position(GameConstants.PUCK_RADIUS.x(), 0.5);
-            assertEquals(Collision.LEFT_WALL, createRunnable(puckPos).detectCollision());
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.LEFT_WALL));
         }
 
         @Test
         @DisplayName("Puck past left wall → LEFT_WALL")
         void leftWallPast() {
             Position puckPos = new Position(GameConstants.PUCK_RADIUS.x() - 0.01, 0.5);
-            assertEquals(Collision.LEFT_WALL, createRunnable(puckPos).detectCollision());
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.LEFT_WALL));
         }
 
         @Test
         @DisplayName("Puck touching right wall → RIGHT_WALL")
         void rightWall() {
             Position puckPos = new Position(1.0 - GameConstants.PUCK_RADIUS.x(), 0.5);
-            assertEquals(Collision.RIGHT_WALL, createRunnable(puckPos).detectCollision());
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.RIGHT_WALL));
         }
 
         @Test
         @DisplayName("Puck past right wall → RIGHT_WALL")
         void rightWallPast() {
             Position puckPos = new Position(1.0 - GameConstants.PUCK_RADIUS.x() + 0.01, 0.5);
-            assertEquals(Collision.RIGHT_WALL, createRunnable(puckPos).detectCollision());
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.RIGHT_WALL));
         }
 
         @Test
@@ -84,14 +87,14 @@ class CollisionDetectionTest {
         void topWall() {
             // x far from goal (goal is centered at 0.5)
             Position puckPos = new Position(0.1, GameConstants.PUCK_RADIUS.y());
-            assertEquals(Collision.TOP_WALL, createRunnable(puckPos).detectCollision());
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.TOP_WALL));
         }
 
         @Test
         @DisplayName("Puck touching bottom wall outside goal → BOTTOM_WALL")
         void bottomWall() {
             Position puckPos = new Position(0.1, 1.0 - GameConstants.PUCK_RADIUS.y());
-            assertEquals(Collision.BOTTOM_WALL, createRunnable(puckPos).detectCollision());
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.BOTTOM_WALL));
         }
     }
 
@@ -106,14 +109,14 @@ class CollisionDetectionTest {
         void player1Goal() {
             // Puck center is past the bottom edge
             Position puckPos = new Position(0.5, 1.0 + GameConstants.PUCK_RADIUS.y() + 0.01);
-            assertEquals(Collision.P1_GOAL, createRunnable(puckPos).detectCollision());
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.P1_GOAL));
         }
 
         @Test
         @DisplayName("Puck past top edge (y below 0) → P2_GOAL (player 1 scores)")
         void player2Goal() {
             Position puckPos = new Position(0.5, -(GameConstants.PUCK_RADIUS.y() + 0.01));
-            assertEquals(Collision.P2_GOAL, createRunnable(puckPos).detectCollision());
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.P2_GOAL));
         }
 
         @Test
@@ -121,9 +124,9 @@ class CollisionDetectionTest {
         void topGoalZoneIsNotWall() {
             // Puck in the center of the goal mouth at y=0
             Position puckPos = new Position(0.5, GameConstants.PUCK_RADIUS.y());
-            Collision result = createRunnable(puckPos).detectCollision();
+            EnumSet<Collision> result = createRunnable(puckPos).detectCollisions();
             // Should NOT be TOP_WALL since it's in the goal opening
-            assertEquals(Collision.NO_COLLISION, result,
+            assertTrue(result.isEmpty() || !result.contains(Collision.TOP_WALL),
                     "Puck at the goal mouth should pass through, not bounce off the wall");
         }
 
@@ -131,8 +134,8 @@ class CollisionDetectionTest {
         @DisplayName("Puck in goal zone bottom wall should NOT trigger BOTTOM_WALL")
         void bottomGoalZoneIsNotWall() {
             Position puckPos = new Position(0.5, 1.0 - GameConstants.PUCK_RADIUS.y());
-            Collision result = createRunnable(puckPos).detectCollision();
-            assertEquals(Collision.NO_COLLISION, result,
+            EnumSet<Collision> result = createRunnable(puckPos).detectCollisions();
+            assertTrue(result.isEmpty() || !result.contains(Collision.BOTTOM_WALL),
                     "Puck at the goal mouth should pass through, not bounce off the wall");
         }
 
@@ -142,7 +145,7 @@ class CollisionDetectionTest {
             // Puck is to the right of the goal posts, past the bottom edge
             Position puckPos = new Position(0.5 + GameConstants.GOAL_WIDTH + 0.05,
                     1.0 + GameConstants.PUCK_RADIUS.y() + 0.01);
-            assertEquals(Collision.BOTTOM_WALL, createRunnable(puckPos).detectCollision(),
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.BOTTOM_WALL),
                     "Puck past bottom edge outside goal zone should bounce, not score");
         }
 
@@ -152,7 +155,7 @@ class CollisionDetectionTest {
             // Puck is to the right of the goal posts, past the top edge
             Position puckPos = new Position(0.5 + GameConstants.GOAL_WIDTH + 0.05,
                     -(GameConstants.PUCK_RADIUS.y() + 0.01));
-            assertEquals(Collision.TOP_WALL, createRunnable(puckPos).detectCollision(),
+            assertTrue(createRunnable(puckPos).detectCollisions().contains(Collision.TOP_WALL),
                     "Puck past top edge outside goal zone should bounce, not score");
         }
     }
@@ -168,13 +171,11 @@ class CollisionDetectionTest {
         void player1Handle() {
             // Place puck at same Y as handle, with small X offset within collision
             // distance.
-            // The distance formula normalizes Y by dividing by BOARD_ASPECT_RATIO, so using
-            // a pure X offset is the most reliable way to trigger collision.
             Position handlePos = new Position(0.5, 0.8);
             double xOffset = GameConstants.PUCK_HANDLE_MIN_DISTANCE - 0.001;
             Position puckPos = new Position(0.5 + xOffset, 0.8);
-            assertEquals(Collision.P1_HANDLE,
-                    createRunnable(puckPos, handlePos, GameConstants.HANDLE_START_P2).detectCollision());
+            assertTrue(createRunnable(puckPos, handlePos, GameConstants.HANDLE_START_P2)
+                    .detectCollisions().contains(Collision.P1_HANDLE));
         }
 
         @Test
@@ -183,8 +184,8 @@ class CollisionDetectionTest {
             Position handlePos = new Position(0.5, 0.2);
             double xOffset = GameConstants.PUCK_HANDLE_MIN_DISTANCE - 0.001;
             Position puckPos = new Position(0.5 - xOffset, 0.2);
-            assertEquals(Collision.P2_HANDLE,
-                    createRunnable(puckPos, GameConstants.HANDLE_START_P1, handlePos).detectCollision());
+            assertTrue(createRunnable(puckPos, GameConstants.HANDLE_START_P1, handlePos)
+                    .detectCollisions().contains(Collision.P2_HANDLE));
         }
 
         @Test
@@ -194,8 +195,8 @@ class CollisionDetectionTest {
             // Place puck further than min distance on X axis
             double xOffset = GameConstants.PUCK_HANDLE_MIN_DISTANCE + 0.05;
             Position puckPos = new Position(0.5 + xOffset, 0.8);
-            assertEquals(Collision.NO_COLLISION,
-                    createRunnable(puckPos, handlePos, GameConstants.HANDLE_START_P2).detectCollision());
+            assertTrue(createRunnable(puckPos, handlePos, GameConstants.HANDLE_START_P2)
+                    .detectCollisions().isEmpty());
         }
     }
 
@@ -206,16 +207,45 @@ class CollisionDetectionTest {
     class SpecialCases {
 
         @Test
-        @DisplayName("Puck off-board → NO_COLLISION")
+        @DisplayName("Puck off-board → empty (no collision)")
         void offBoard() {
-            assertEquals(Collision.NO_COLLISION, createRunnable(GameConstants.OFF_BOARD_POSITION).detectCollision());
+            assertTrue(createRunnable(GameConstants.OFF_BOARD_POSITION).detectCollisions().isEmpty());
         }
 
         @Test
-        @DisplayName("Puck in center of board → NO_COLLISION")
+        @DisplayName("Puck in center of board → empty (no collision)")
         void centerOfBoard() {
             Position center = new Position(0.5, 0.5);
-            assertEquals(Collision.NO_COLLISION, createRunnable(center).detectCollision());
+            assertTrue(createRunnable(center).detectCollisions().isEmpty());
+        }
+    }
+
+    // ─── Compound Collisions ──────────────────────────────────────
+
+    @Nested
+    @DisplayName("Compound collisions")
+    class CompoundCollisions {
+
+        @Test
+        @DisplayName("Puck in top-left corner detects both TOP_WALL and LEFT_WALL")
+        void topLeftCorner() {
+            Position puckPos = new Position(GameConstants.PUCK_RADIUS.x(), GameConstants.PUCK_RADIUS.y());
+            EnumSet<Collision> result = createRunnable(puckPos).detectCollisions();
+            assertTrue(result.contains(Collision.TOP_WALL), "Should detect top wall");
+            assertTrue(result.contains(Collision.LEFT_WALL), "Should detect left wall");
+            assertEquals(2, result.size(), "Should detect exactly two collisions");
+        }
+
+        @Test
+        @DisplayName("Puck in bottom-right corner detects both BOTTOM_WALL and RIGHT_WALL")
+        void bottomRightCorner() {
+            Position puckPos = new Position(
+                    1.0 - GameConstants.PUCK_RADIUS.x(),
+                    1.0 - GameConstants.PUCK_RADIUS.y());
+            EnumSet<Collision> result = createRunnable(puckPos).detectCollisions();
+            assertTrue(result.contains(Collision.BOTTOM_WALL), "Should detect bottom wall");
+            assertTrue(result.contains(Collision.RIGHT_WALL), "Should detect right wall");
+            assertEquals(2, result.size(), "Should detect exactly two collisions");
         }
     }
 }
