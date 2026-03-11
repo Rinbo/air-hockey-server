@@ -20,24 +20,22 @@ public class BroadcastState {
 
     private final MutablePosition opponent = new MutablePosition();
     private final MutablePosition puck = new MutablePosition();
-    private final MutablePosition puckSpeed = new MutablePosition();
+
     private long remainingSeconds;
     private int collisionEvent;
 
-    public void set(Position opponentPos, Position puckPos, double puckSpeedX, double puckSpeedY,
+    public void set(Position opponentPos, Position puckPos,
             long remainingSeconds, int collisionEvent) {
         this.opponent.set(opponentPos.x(), opponentPos.y());
         this.puck.set(puckPos.x(), puckPos.y());
-        this.puckSpeed.set(puckSpeedX, puckSpeedY);
         this.remainingSeconds = remainingSeconds;
         this.collisionEvent = collisionEvent;
     }
 
-    public void setMirrored(Position opponentPos, Position puckPos, double puckSpeedX, double puckSpeedY,
+    public void setMirrored(Position opponentPos, Position puckPos,
             long remainingSeconds, int collisionEvent) {
         this.opponent.set(1 - opponentPos.x(), 1 - opponentPos.y());
         this.puck.set(1 - puckPos.x(), 1 - puckPos.y());
-        this.puckSpeed.set(-puckSpeedX, -puckSpeedY);
         this.remainingSeconds = remainingSeconds;
         this.collisionEvent = collisionEvent;
     }
@@ -50,9 +48,7 @@ public class BroadcastState {
         return puck;
     }
 
-    public MutablePosition getPuckSpeed() {
-        return puckSpeed;
-    }
+
 
     public long getRemainingSeconds() {
         return remainingSeconds;

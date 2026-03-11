@@ -30,8 +30,8 @@ import se.docksidelabs.airhockeyserver.service.api.GameService;
  * <p>
  * Binary protocol:
  * <ul>
- * <li>Server → Client (64 bytes): 8 × Float64 [opponentX, opponentY, puckX,
- * puckY, puckSpeedX, puckSpeedY, remainingSeconds, collisionEvent]</li>
+ * <li>Server → Client (48 bytes): 6 × Float64 [opponentX, opponentY, puckX,
+ * puckY, remainingSeconds, collisionEvent]</li>
  * <li>Client → Server (16 bytes): 2 × Float64 [handleX, handleY]</li>
  * </ul>
  *
@@ -41,7 +41,7 @@ import se.docksidelabs.airhockeyserver.service.api.GameService;
  */
 @Component
 public class GameWebSocketHandler extends BinaryWebSocketHandler {
-  private static final int BROADCAST_STATE_BYTES = 8 * Double.BYTES; // 64 bytes
+  private static final int BROADCAST_STATE_BYTES = 6 * Double.BYTES; // 48 bytes
   private static final int HANDLE_UPDATE_BYTES = 2 * Double.BYTES; // 16 bytes
   private static final int SEND_BUFFER_LIMIT = 16 * 1024; // 16 KB — ~250 state frames
   private static final int SEND_TIME_LIMIT_MS = 5_000; // 5 seconds
@@ -124,8 +124,7 @@ public class GameWebSocketHandler extends BinaryWebSocketHandler {
       buffer.putDouble(state.getOpponent().getY());
       buffer.putDouble(state.getPuck().getX());
       buffer.putDouble(state.getPuck().getY());
-      buffer.putDouble(state.getPuckSpeed().getX());
-      buffer.putDouble(state.getPuckSpeed().getY());
+
       buffer.putDouble(state.getRemainingSeconds());
       buffer.putDouble(state.getCollisionEvent());
       buffer.flip();

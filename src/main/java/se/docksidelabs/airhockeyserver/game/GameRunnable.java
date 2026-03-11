@@ -244,14 +244,12 @@ class GameRunnable implements Runnable {
 
   private void broadcast(long remainingSeconds) {
     Position puckPosition = boardState.puck().getPosition();
-    double puckSpeedX = boardState.puck().getSpeedX();
-    double puckSpeedY = boardState.puck().getSpeedY();
     Position playerOneHandlePosition = boardState.playerOne().getPosition();
     Position playerTwoHandlePosition = boardState.playerTwo().getPosition();
 
-    p1State.set(playerTwoHandlePosition, puckPosition, puckSpeedX, puckSpeedY, remainingSeconds,
+    p1State.set(playerTwoHandlePosition, puckPosition, remainingSeconds,
         currentCollisionEvent);
-    p2State.setMirrored(playerOneHandlePosition, puckPosition, puckSpeedX, puckSpeedY, remainingSeconds,
+    p2State.setMirrored(playerOneHandlePosition, puckPosition, remainingSeconds,
         currentCollisionEvent);
     gameStoreConnector.broadcast(p1State, p2State);
   }
