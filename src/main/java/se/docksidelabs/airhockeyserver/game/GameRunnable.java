@@ -22,6 +22,11 @@ class GameRunnable implements Runnable {
   private static final long FRAME_DURATION_NS = 1_000_000_000L / GameConstants.FRAME_RATE;
   private static final long GAME_DURATION_NS = GameConstants.GAME_DURATION.toNanos();
   private static final long PUCK_RESET_DURATION_NS = GameConstants.PUCK_RESET_DURATION.toNanos();
+  // Grace period at the start of a game — board state is broadcast so
+  // clients can connect and see starting positions, but physics and AI
+  // are frozen.  Prevents the AI from playing before the human's client
+  // has finished its WebSocket handshake.
+  private static final long WARMUP_DURATION_NS = 1_000_000_000L;
   private static final int SUB_STEPS = 4;
   private static final Logger logger = LoggerFactory.getLogger(GameRunnable.class);
   private final boolean aiMode;
@@ -104,6 +109,23 @@ class GameRunnable implements Runnable {
   public void run() {
     logger.info("Starting game loop: {}", gameId);
 
+    // ── Warmup phase ────────────────────────────────────────────────
+    // Broadcast the initial board state at 60 Hz so clients can connect
+    // their binary WebSocket and see all objects in starting position.
+    // Physics / AI are frozen during this window.
+    long warmupStartNs = System.nanoTime();
+    while (!Thread.currentThread().isInterrupted()) {
+      long now = System.nanoTime();
+      if (now - warmupStartNs >= WARMUP_DURATION_NS) break;
+
+      long remainingSeconds = GAME_DURATION_NS / 1_000_000_000L;
+      broadcast(remainingSeconds);
+
+      long sleepNs = FRAME_DURATION_NS - (System.nanoTime() - now);
+      if (sleepNs > 0) LockSupport.parkNanos(sleepNs);
+    }
+
+    // ── Main game loop ──────────────────────────────────────────────
     long gameStartNs = System.nanoTime();
     long previousFrameNs = gameStartNs;
 

@@ -33,6 +33,8 @@ public class GameEngine {
     if (gameThread != null && gameThread.isAlive())
       throw new IllegalStateException("Game already running");
 
+    boardState.resetObjects();
+
     gameThread = Thread.ofVirtual()
         .name("game-" + gameId)
         .start(new GameRunnable(boardState, gameId, gameStoreConnector, aiMode));
