@@ -86,6 +86,20 @@ public final class AiPlayer {
             return;
         }
 
+        // --- Stationary puck in open space ---
+        // The puck has stopped but is NOT against a wall (e.g. friction brought
+        // it to zero mid-field).  Aim directly at the puck so the AI handle
+        // collides with it and puts it back into play.  Without this the normal
+        // "position behind" offset causes the AI to hover near the puck
+        // without ever touching it.
+        if (puckSpeed < STUCK_SPEED_THRESHOLD
+                && puckPos.y() < ATTACK_THRESHOLD_Y) {
+            double targetX = Math.max(MIN_X, Math.min(MAX_X, puckPos.x()));
+            double targetY = Math.max(MIN_Y, Math.min(MAX_Y, puckPos.y()));
+            handle.setPosition(lerp(currentPos, targetX, targetY));
+            return;
+        }
+
         double targetX;
         double targetY;
 

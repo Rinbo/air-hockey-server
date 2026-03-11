@@ -140,6 +140,26 @@ class AiPlayerTest {
                         + aiPos.x());
     }
 
+    @Test
+    @DisplayName("AI hits a stationary puck in open space (not against wall)")
+    void aiHitsStationaryPuckInOpenSpace() {
+        // Place puck in AI's half, away from all walls, with zero speed.
+        // This reproduces the bug where the AI wobbles near the puck
+        // without ever making contact.
+        Position puckPos = new Position(0.3, 0.3);
+        boardState.puck().setPosition(puckPos);
+        boardState.puck().setSpeedXY(0, 0);
+
+        for (int i = 0; i < 500; i++) {
+            AiPlayer.tick(boardState);
+        }
+
+        double dist = distance(boardState.playerTwo().getPosition(), puckPos);
+        assertTrue(dist <= GameConstants.PUCK_HANDLE_MIN_DISTANCE + 0.01,
+                "AI should converge onto the stationary puck (within collision range), "
+                        + "but distance was " + dist);
+    }
+
     private static double distance(Position a, Position b) {
         double dx = a.x() - b.x();
         double dy = a.y() - b.y();
