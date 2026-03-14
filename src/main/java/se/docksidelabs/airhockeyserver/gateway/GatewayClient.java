@@ -42,6 +42,35 @@ public class GatewayClient {
   }
 
   /**
+   * Report this server's capacity to the gateway so it can make
+   * scheduling decisions. Fire-and-forget — logs errors but never throws.
+   */
+  public void sendHeartbeat(String machineId, int activeGames, int maxGames, String region) {
+    try {
+      String body = objectMapper.writeValueAsString(Map.of(
+          "machineId", machineId,
+          "activeGames", activeGames,
+          "maxGames", maxGames,
+          "region", region));
+
+      HttpRequest request = HttpRequest.newBuilder()
+          .uri(URI.create(gatewayUrl + "/api/servers/heartbeat"))
+          .header("Content-Type", "application/json")
+          .header("X-Service-Key", serviceKey)
+          .POST(HttpRequest.BodyPublishers.ofString(body))
+          .build();
+
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+      if (response.statusCode() > 299) {
+        logger.warn("Gateway returned {} for heartbeat: {}", response.statusCode(), response.body());
+      }
+    } catch (Exception e) {
+      logger.warn("Failed to send heartbeat to gateway", e);
+    }
+  }
+
+  /**
    * Report that a game was played by the given user.
    * Fire-and-forget — logs errors but never throws.
    */
