@@ -1,21 +1,17 @@
 package se.docksidelabs.airhockeyserver.config;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import se.docksidelabs.airhockeyserver.gateway.GatewayClient;
 import se.docksidelabs.airhockeyserver.model.GameId;
 import se.docksidelabs.airhockeyserver.repository.GameStore;
-import se.docksidelabs.airhockeyserver.repository.UserStore;
 import se.docksidelabs.airhockeyserver.service.api.GameService;
 import se.docksidelabs.airhockeyserver.worker.GatewayHeartbeatWorker;
-import se.docksidelabs.airhockeyserver.worker.PingWorker;
 import se.docksidelabs.airhockeyserver.worker.RepositoryCleaner;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
@@ -38,13 +34,8 @@ public class AppConfig {
   }
 
   @Bean
-  PingWorker createPingWorker(SimpMessagingTemplate messagingTemplate, UserStore userStore) {
-    return new PingWorker(messagingTemplate, userStore);
-  }
-
-  @Bean
-  RepositoryCleaner createRepositoryCleaner(GameService gameService, UserStore userStore) {
-    return new RepositoryCleaner(gameService, Duration.ofMinutes(1), userStore);
+  RepositoryCleaner createRepositoryCleaner(GameService gameService) {
+    return new RepositoryCleaner(gameService);
   }
 
   @Bean
@@ -56,9 +47,5 @@ public class AppConfig {
       @Value("${server.region:${FLY_REGION:local}}") String region) {
     return new GatewayHeartbeatWorker(gatewayClient, gameStoreMap, machineId, maxConcurrentGames, region);
   }
-
-  @Bean
-  UserStore createUserstore() {
-    return new UserStore();
-  }
 }
+
