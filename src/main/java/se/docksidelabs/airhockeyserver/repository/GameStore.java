@@ -108,6 +108,7 @@ public class GameStore {
 
   public void startGame(SimpMessagingTemplate messagingTemplate, GameWebSocketHandler gameWebSocketHandler,
       GatewayClient gatewayClient) {
+    players.forEach(Player::resetScore);
     transition(GameState.GAME_RUNNING);
     gameEngine.startGame(gameId, new GameStoreConnector(this, messagingTemplate, gameWebSocketHandler, gatewayClient));
   }

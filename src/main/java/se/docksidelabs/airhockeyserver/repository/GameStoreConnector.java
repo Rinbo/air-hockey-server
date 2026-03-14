@@ -98,6 +98,7 @@ public class GameStoreConnector {
     messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), players);
 
     players.forEach(Player::resetScore);
+    messagingTemplate.convertAndSend(TopicUtils.createPlayerTopic(gameId), players);
 
     gameStore.transition(GameState.LOBBY);
     gameStore.terminate();
