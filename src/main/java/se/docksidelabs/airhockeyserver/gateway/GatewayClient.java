@@ -96,4 +96,39 @@ public class GatewayClient {
       logger.warn("Failed to report game played for user {}", userId, e);
     }
   }
+
+  /**
+   * Report a completed match result to the gateway for ELO calculation and
+   * match history persistence. Only called for human-vs-human games.
+   * Fire-and-forget — logs errors but never throws.
+   */
+  public void reportMatchResult(String player1Id, String player2Id,
+      int score1, int score2, int durationSeconds) {
+    Objects.requireNonNull(player1Id, "player1Id must not be null");
+    Objects.requireNonNull(player2Id, "player2Id must not be null");
+
+    try {
+      String body = objectMapper.writeValueAsString(Map.of(
+          "player1Id", player1Id,
+          "player2Id", player2Id,
+          "score1", score1,
+          "score2", score2,
+          "durationSeconds", durationSeconds));
+
+      HttpRequest request = HttpRequest.newBuilder()
+          .uri(URI.create(gatewayUrl + "/api/rankings/report"))
+          .header("Content-Type", "application/json")
+          .header("X-Service-Key", serviceKey)
+          .POST(HttpRequest.BodyPublishers.ofString(body))
+          .build();
+
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+      if (response.statusCode() > 299) {
+        logger.warn("Gateway returned {} for match report: {}", response.statusCode(), response.body());
+      }
+    } catch (Exception e) {
+      logger.warn("Failed to report match result", e);
+    }
+  }
 }

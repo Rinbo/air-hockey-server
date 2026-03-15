@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import se.docksidelabs.airhockeyserver.game.BroadcastState;
+import se.docksidelabs.airhockeyserver.game.properties.GameConstants;
 import se.docksidelabs.airhockeyserver.gateway.GatewayClient;
 import se.docksidelabs.airhockeyserver.model.Agency;
 import se.docksidelabs.airhockeyserver.model.GameId;
@@ -82,8 +83,20 @@ public class GameStoreConnector {
 
     updateGamesWon(players);
 
-    // Report game played to gateway for each human player
-    players.forEach(player -> gatewayClient.reportGamePlayed(player.getGatewayUserId()));
+    // Only report to gateway for human-vs-human games
+    if (!gameStore.isAiMode()) {
+      players.forEach(player -> gatewayClient.reportGamePlayed(player.getGatewayUserId()));
+
+      // Report match result for ELO calculation and match history
+      Player p1 = players.stream().filter(p -> p.getAgency() == Agency.PLAYER_1).findFirst().orElse(null);
+      Player p2 = players.stream().filter(p -> p.getAgency() == Agency.PLAYER_2).findFirst().orElse(null);
+      if (p1 != null && p2 != null) {
+        int durationSeconds = (int) GameConstants.GAME_DURATION.toSeconds();
+        gatewayClient.reportMatchResult(
+            p1.getGatewayUserId(), p2.getGatewayUserId(),
+            p1.getScore(), p2.getScore(), durationSeconds);
+      }
+    }
 
     // Explicitly reset all players to not-ready (don't toggle — that's fragile)
     players.forEach(p -> p.setReady(false));
