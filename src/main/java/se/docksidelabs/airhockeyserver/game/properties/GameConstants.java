@@ -15,7 +15,7 @@ public final class GameConstants {
 
   // ── Board ────────────────────────────────────────────────────────
   public static final double BOARD_ASPECT_RATIO = 0.625;
-  public static final double GOAL_WIDTH = 0.18;
+  public static final double GOAL_WIDTH = 0.15;
 
   // ── Timing ───────────────────────────────────────────────────────
   public static final int FRAME_RATE = 60;
@@ -23,8 +23,8 @@ public final class GameConstants {
   public static final Duration PUCK_RESET_DURATION = Duration.ofSeconds(1);
 
   // ── Object Sizing ────────────────────────────────────────────────
-  public static final Radius PUCK_RADIUS = new Radius(0.06, 0.06 * BOARD_ASPECT_RATIO);
-  public static final Radius HANDLE_RADIUS = new Radius(0.09, 0.09 * BOARD_ASPECT_RATIO);
+  public static final Radius PUCK_RADIUS = new Radius(0.04, 0.04 * BOARD_ASPECT_RATIO);
+  public static final Radius HANDLE_RADIUS = new Radius(0.065, 0.065 * BOARD_ASPECT_RATIO);
   public static final double PUCK_HANDLE_MIN_DISTANCE = PUCK_RADIUS.x() + HANDLE_RADIUS.x();
 
   // ── Starting Positions ───────────────────────────────────────────
