@@ -12,4 +12,4 @@ FROM eclipse-temurin:25-jre
 RUN groupadd -r app && useradd -r -g app app
 COPY --from=build /app/target/*.jar /app/app.jar
 USER app
-ENTRYPOINT ["java", "-XX:+UseZGC", "-Xmx1g", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:+UseZGC", "-Xms512m", "-Xmx512m", "-jar", "/app/app.jar"]
