@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import se.docksidelabs.airhockeyserver.game.BoardState;
+import se.docksidelabs.airhockeyserver.transport.BoardTransport;
 import se.docksidelabs.airhockeyserver.game.GameEngine;
 import se.docksidelabs.airhockeyserver.game.properties.Position;
 import se.docksidelabs.airhockeyserver.gateway.GatewayClient;
@@ -23,7 +24,7 @@ import se.docksidelabs.airhockeyserver.model.GameState;
 import se.docksidelabs.airhockeyserver.model.Player;
 import se.docksidelabs.airhockeyserver.model.Username;
 
-import se.docksidelabs.airhockeyserver.websocket.GameWebSocketHandler;
+
 
 public class GameStore {
   private static final Logger logger = LoggerFactory.getLogger(GameStore.class);
@@ -106,11 +107,11 @@ public class GameStore {
     players.remove(player);
   }
 
-  public void startGame(SimpMessagingTemplate messagingTemplate, GameWebSocketHandler gameWebSocketHandler,
+  public void startGame(SimpMessagingTemplate messagingTemplate, BoardTransport boardTransport,
       GatewayClient gatewayClient) {
     players.forEach(Player::resetScore);
     transition(GameState.GAME_RUNNING);
-    gameEngine.startGame(gameId, new GameStoreConnector(this, messagingTemplate, gameWebSocketHandler, gatewayClient));
+    gameEngine.startGame(gameId, new GameStoreConnector(this, messagingTemplate, boardTransport, gatewayClient));
   }
 
   public void terminate() {

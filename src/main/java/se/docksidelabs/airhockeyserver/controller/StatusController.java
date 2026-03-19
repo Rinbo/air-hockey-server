@@ -24,9 +24,9 @@ public class StatusController {
 
   public StatusController(
       Map<GameId, GameStore> gameStoreMap,
-      @Value("${server.machine-id:${FLY_MACHINE_ID:local}}") String machineId,
+      @Value("${server.machine-id:${SERVER_MACHINE_ID:local}}") String machineId,
       @Value("${server.max-concurrent-games:20}") int maxConcurrentGames,
-      @Value("${server.region:${FLY_REGION:local}}") String region) {
+      @Value("${server.region:${SERVER_REGION:local}}") String region) {
     this.gameStoreMap = gameStoreMap;
     this.machineId = machineId;
     this.maxConcurrentGames = maxConcurrentGames;

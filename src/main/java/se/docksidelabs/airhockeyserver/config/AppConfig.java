@@ -11,6 +11,8 @@ import se.docksidelabs.airhockeyserver.gateway.GatewayClient;
 import se.docksidelabs.airhockeyserver.model.GameId;
 import se.docksidelabs.airhockeyserver.repository.GameStore;
 import se.docksidelabs.airhockeyserver.service.api.GameService;
+import se.docksidelabs.airhockeyserver.transport.BoardTransport;
+import se.docksidelabs.airhockeyserver.transport.UdpBoardTransport;
 import se.docksidelabs.airhockeyserver.worker.GatewayHeartbeatWorker;
 import se.docksidelabs.airhockeyserver.worker.RepositoryCleaner;
 import tools.jackson.databind.DeserializationFeature;
@@ -42,10 +44,16 @@ public class AppConfig {
   GatewayHeartbeatWorker createGatewayHeartbeatWorker(
       GatewayClient gatewayClient,
       Map<GameId, GameStore> gameStoreMap,
-      @Value("${server.machine-id:${FLY_MACHINE_ID:local}}") String machineId,
+      @Value("${server.machine-id:${SERVER_MACHINE_ID:local}}") String machineId,
       @Value("${server.max-concurrent-games:20}") int maxConcurrentGames,
-      @Value("${server.region:${FLY_REGION:local}}") String region) {
+      @Value("${server.region:${SERVER_REGION:local}}") String region) {
     return new GatewayHeartbeatWorker(gatewayClient, gameStoreMap, machineId, maxConcurrentGames, region);
   }
-}
 
+  @Bean
+  BoardTransport boardTransport(
+      GameService gameService,
+      @Value("${transport.udp.port:9000}") int udpPort) {
+    return new UdpBoardTransport(udpPort, gameService);
+  }
+}

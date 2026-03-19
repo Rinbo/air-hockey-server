@@ -19,27 +19,27 @@ import se.docksidelabs.airhockeyserver.model.Username;
 import se.docksidelabs.airhockeyserver.service.api.CountdownService;
 import se.docksidelabs.airhockeyserver.service.api.GameService;
 import se.docksidelabs.airhockeyserver.utils.TopicUtils;
-import se.docksidelabs.airhockeyserver.websocket.GameWebSocketHandler;
+import se.docksidelabs.airhockeyserver.transport.BoardTransport;
 
 @Service
 public class CountdownServiceImpl implements CountdownService {
+  private final BoardTransport boardTransport;
   private final Map<GameId, Timer> countdownMap;
   private final GatewayClient gatewayClient;
   private final GameService gameService;
-  private final GameWebSocketHandler gameWebSocketHandler;
   private final SimpMessagingTemplate messagingTemplate;
 
   public CountdownServiceImpl(GameService gameService, SimpMessagingTemplate messagingTemplate,
-      GameWebSocketHandler gameWebSocketHandler, GatewayClient gatewayClient) {
+      BoardTransport boardTransport, GatewayClient gatewayClient) {
     Objects.requireNonNull(gameService, "gameService must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
-    Objects.requireNonNull(gameWebSocketHandler, "gameWebSocketHandler must not be null");
+    Objects.requireNonNull(boardTransport, "boardTransport must not be null");
     Objects.requireNonNull(gatewayClient, "gatewayClient must not be null");
 
+    this.boardTransport = boardTransport;
     this.countdownMap = new ConcurrentHashMap<>();
     this.gatewayClient = gatewayClient;
     this.gameService = gameService;
-    this.gameWebSocketHandler = gameWebSocketHandler;
     this.messagingTemplate = messagingTemplate;
   }
 
@@ -82,7 +82,7 @@ public class CountdownServiceImpl implements CountdownService {
             new UserMessage(TopicUtils.GAME_BOT, "Game starts in " + count--));
         if (count < 0) {
           gameService.getGameStore(gameId)
-              .ifPresent(gameStore -> gameStore.startGame(messagingTemplate, gameWebSocketHandler, gatewayClient));
+              .ifPresent(gameStore -> gameStore.startGame(messagingTemplate, boardTransport, gatewayClient));
           messagingTemplate.convertAndSend(TopicUtils.createGameStateTopic(gameId), Notification.GAME_RUNNING);
           timer.cancel();
           countdownMap.remove(gameId);

@@ -8,6 +8,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import se.docksidelabs.airhockeyserver.game.BroadcastState;
 import se.docksidelabs.airhockeyserver.game.properties.GameConstants;
+import se.docksidelabs.airhockeyserver.transport.BoardTransport;
 import se.docksidelabs.airhockeyserver.gateway.GatewayClient;
 import se.docksidelabs.airhockeyserver.model.Agency;
 import se.docksidelabs.airhockeyserver.model.GameId;
@@ -15,25 +16,24 @@ import se.docksidelabs.airhockeyserver.model.GameState;
 import se.docksidelabs.airhockeyserver.model.Notification;
 import se.docksidelabs.airhockeyserver.model.Player;
 import se.docksidelabs.airhockeyserver.utils.TopicUtils;
-import se.docksidelabs.airhockeyserver.websocket.GameWebSocketHandler;
 
 public class GameStoreConnector {
+  private final BoardTransport boardTransport;
   private final GatewayClient gatewayClient;
   private final GameStore gameStore;
-  private final GameWebSocketHandler gameWebSocketHandler;
   private final SimpMessagingTemplate messagingTemplate;
 
   public GameStoreConnector(GameStore gameStore, SimpMessagingTemplate messagingTemplate,
-      GameWebSocketHandler gameWebSocketHandler, GatewayClient gatewayClient) {
+      BoardTransport boardTransport, GatewayClient gatewayClient) {
     Objects.requireNonNull(gameStore, "gameStore must not be null");
     Objects.requireNonNull(messagingTemplate, "messagingTemplate must not be null");
-    Objects.requireNonNull(gameWebSocketHandler, "gameWebSocketHandler must not be null");
+    Objects.requireNonNull(boardTransport, "boardTransport must not be null");
     Objects.requireNonNull(gatewayClient, "gatewayClient must not be null");
 
+    this.boardTransport = boardTransport;
     this.gatewayClient = gatewayClient;
     this.gameStore = gameStore;
     this.messagingTemplate = messagingTemplate;
-    this.gameWebSocketHandler = gameWebSocketHandler;
   }
 
   private static String printResult(Collection<Player> players) {
@@ -69,8 +69,8 @@ public class GameStoreConnector {
    */
   public void broadcast(BroadcastState playerOneState, BroadcastState playerTwoState) {
     GameId gameId = gameStore.getGameId();
-    gameWebSocketHandler.sendBoardState(gameId, Agency.PLAYER_1, playerOneState);
-    gameWebSocketHandler.sendBoardState(gameId, Agency.PLAYER_2, playerTwoState);
+    boardTransport.sendBoardState(gameId, Agency.PLAYER_1, playerOneState);
+    boardTransport.sendBoardState(gameId, Agency.PLAYER_2, playerTwoState);
   }
 
   public void gameComplete() {
