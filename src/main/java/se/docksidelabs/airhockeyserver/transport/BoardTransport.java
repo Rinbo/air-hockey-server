@@ -7,7 +7,7 @@ import se.docksidelabs.airhockeyserver.model.GameId;
 /**
  * Abstraction for sending board state to players, decoupling
  * the game loop from the underlying transport mechanism
- * (WebSocket, UDP datagrams via WebTransport, etc.).
+ * (currently UDP/TCP via the WebRTC sidecar).
  */
 public interface BoardTransport {
 

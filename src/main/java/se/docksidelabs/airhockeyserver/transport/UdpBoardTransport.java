@@ -27,7 +27,7 @@ import se.docksidelabs.airhockeyserver.service.api.GameService;
 
 /**
  * Dual-protocol {@link BoardTransport} for receiving player input and
- * broadcasting board state via the Go WebTransport sidecar.
+ * broadcasting board state via the Go WebRTC sidecar.
  *
  * <p>Accepts <strong>inbound</strong> datagrams over <strong>UDP</strong> (registration
  * and player input from the sidecar) and sends <strong>outbound</strong> board state
